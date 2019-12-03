@@ -24,13 +24,15 @@ def substitute(term, subs):
 def lsubstitute(lterm, subs):
     return [substitute(x, subs) for x in  lterm]
 
-def compose(subs, rule):
-    for name, term in rule.items():
-        if name in subs:
-            raise Exception("Compose error")
-            
-        term = substitute(term, subs)
-        subs[name] = term #add to subs
+def subs_to_dict(subs):
+    d = {}
+    for x, y in zip(*subs):
+        assert(is_var(x))
+        d[x.name] = y
+    return d
+
+def subs_to_set(subs):
+    return set([x.name for x in subs[0]])
 
 def term_equal(p, q):
     if p.name != q.name or len(p.arg) != len(q.arg):
@@ -53,14 +55,13 @@ def has_variable(term, var_name):
     return False
 
 #two list of equation :))
-def unify(eq1, eq2):
+def unify(eq1, eq2, done_var = set()):
     assert(len(eq1) == len(eq2))
 
     if len(eq1) == 0:
         return []
 
     change = True
-    done_var = set()
 
     while change:
         change = False
@@ -117,13 +118,7 @@ def unify(eq1, eq2):
         eq1 = new_eq1
         eq2 = new_eq2
 
-    #convert to subsitution
-    subs = {}
-    for x, y in zip(eq1, eq2):
-        assert(is_var(x))
-        subs[x.name] = y
-
-    return subs
+    return (eq1, eq2)
 
 def stand_term(term, idx):
     if is_var(term):
@@ -139,19 +134,18 @@ def backchain_ask(kb, goal, subs, depth):
     if len(goal) == 0:
         print(subs)
         return input("Continue (y/n)? ") == 'y'
-    
-    q = substitute(goal[0], subs)
+
+    q = substitute(goal[0], subs_to_dict(subs))
 
     for p in kb:
         p = standardize(p, depth)
-        subs2 = unify([p.imp], [q])
+        subs2 = unify([p.imp] + subs[0], [q] + subs[1], subs_to_set(subs))
         if subs2 is not None:
             new_goal = p.pcnd + goal[1:]
-            subs2.update(subs)
             if not backchain_ask(kb, new_goal, subs2, depth + 1):
                 return False
 
     return True
 
 kb = parse.load_kb("test_infer")
-backchain_ask(kb, parse.parse_goal(input("Goals: ")), {}, 0)
+backchain_ask(kb, parse.parse_goal(input("Goals: ")), ([], []), 0)
