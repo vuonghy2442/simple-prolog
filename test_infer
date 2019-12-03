@@ -1,3 +1,7 @@
 hy
 vy
 human(hy)
+love(a,b)
+love(b,c)
+love(X,X)
+love(X,Y):-love(X,Z),love(Z,Y)

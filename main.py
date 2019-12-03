@@ -130,22 +130,31 @@ def stand_term(term, idx):
 def standardize(sen, idx):
     return parse.Sentence(imp = stand_term(sen.imp, idx), pcnd =  [stand_term(x, idx) for x in sen.pcnd])
 
-def backchain_ask(kb, goal, subs, depth):
+def backchain_ask(kb, goal, subs, depth, stack):
     if len(goal) == 0:
         print(subs)
         return input("Continue (y/n)? ") == 'y'
 
     q = substitute(goal[0], subs_to_dict(subs))
 
+    #check if exist in stack
+    for x in stack:
+        if term_equal(q, x):
+            return True #Alread exist in stack
+
+    stack.append(q)
+
     for p in kb:
         p = standardize(p, depth)
         subs2 = unify([p.imp] + subs[0], [q] + subs[1], subs_to_set(subs))
         if subs2 is not None:
             new_goal = p.pcnd + goal[1:]
-            if not backchain_ask(kb, new_goal, subs2, depth + 1):
+            if not backchain_ask(kb, new_goal, subs2, depth + 1, stack):
                 return False
+
+    stack.pop()
 
     return True
 
 kb = parse.load_kb("test_infer")
-backchain_ask(kb, parse.parse_goal(input("Goals: ")), ([], []), 0)
+backchain_ask(kb, parse.parse_goal(input("Goals: ")), ([], []), 0, [])
