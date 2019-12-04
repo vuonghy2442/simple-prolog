@@ -122,7 +122,7 @@ def unify(eq1, eq2, done_var = set()):
 
 def stand_term(term, idx):
     if is_var(term):
-        return parse.Term(name = term.name + "/" + str(idx), arg = term.arg)
+        return parse.Term(name = term.name + "/" + str(idx), arg = [])
     else:
         return parse.Term(name = term.name, arg = [stand_term(x, idx) for x in term.arg])
 
@@ -130,19 +130,53 @@ def stand_term(term, idx):
 def standardize(sen, idx):
     return parse.Sentence(imp = stand_term(sen.imp, idx), pcnd =  [stand_term(x, idx) for x in sen.pcnd])
 
+#change to a canonical name
+def term_rename(term, subs):
+    if is_var(term):
+        if term.name in subs:
+            return subs[term.name]
+        else:
+            new_term = parse.Term(name = "/" + str(len(subs)), arg = [])
+            subs[term.name] = new_term
+            return new_term 
+    else:
+        return parse.Term(name = term.name, arg = [term_rename(x, subs) for x in term.arg])
+
+def lterm_rename(lterm, subs):
+    return [term_rename(x, subs) for x in lterm]
+
+def lterm_to_string(lterm):
+    return ','.join([term_to_string(x) for x in lterm])
+
+def term_to_string(term):
+    if len(term.arg) == 0:
+        return term.name
+    else:
+        return term.name + '(' + lterm_to_string(term.arg) + ')'
+
+def print_subs(subs):
+    s = []
+    for x, y in zip(*subs):
+        assert(is_var(x))
+        if x.name.find("/") >= 0:
+            continue
+
+        s.append(f"{x.name} = {term_to_string(y)}")
+    
+    if len(s) == 0:
+        print('yes')
+    else:
+        print(','.join(s))
+
 def backchain_ask(kb, goal, subs, depth, stack):
     if len(goal) == 0:
-        print(subs)
+        print_subs(subs)
         return input("Continue (y/n)? ") == 'y'
 
     q = substitute(goal[0], subs_to_dict(subs))
 
     #check if exist in stack
-    for x in stack:
-        if term_equal(q, x):
-            return True #Alread exist in stack
-
-    stack.append(q)
+    #bug because the rename is sensitive to position
 
     for p in kb:
         p = standardize(p, depth)
@@ -152,9 +186,16 @@ def backchain_ask(kb, goal, subs, depth, stack):
             if not backchain_ask(kb, new_goal, subs2, depth + 1, stack):
                 return False
 
-    stack.pop()
+    #stack.remove(cq)
 
     return True
 
-kb = parse.load_kb("test_infer")
-backchain_ask(kb, parse.parse_goal(input("Goals: ")), ([], []), 0, [])
+def inference(kb, goal):
+    #backward chaining
+    if backchain_ask(kb, goal, ([], []), 0, set()):
+        print('no')
+
+kb = parse.load_kb("test_sum")
+while True:
+    goal = parse.parse_goal(input("Goals: "))
+    inference(kb, goal)
