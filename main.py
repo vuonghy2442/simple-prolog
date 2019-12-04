@@ -196,7 +196,6 @@ def backchain_ask(kb, goal, subs, depth, prove):
     global aborted
     if aborted:
         print("\raborted")
-        aborted = False
         return False, False
 
     if len(goal) == 0:
@@ -257,7 +256,7 @@ def inference(kb, goal):
     global aborted
     aborted = False
     found, _ = backchain_ask(kb, goal, ([], []), 0, False)
-    if not found:
+    if not aborted and not found:
         print('no.')
 
 def parse_goal(s):
