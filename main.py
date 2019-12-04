@@ -1,5 +1,7 @@
 import parse
 from collections import namedtuple
+import getch
+import sys
 
 #substitution subs is a dict
 
@@ -166,7 +168,8 @@ def print_subs(subs):
     if len(s) == 0:
         print('yes')
     else:
-        print(','.join(s))
+        print(', '.join(s), end = '')
+    sys.stdout.flush()
 
 def is_cut(term):
     return len(term.arg) == 0 and term.name == "!"
@@ -177,6 +180,9 @@ def is_fail(term):
 def is_not(term):
     return len(term.arg) == 1 and term.name == "not"
 
+def is_smaller(term):
+    return len(term.arg) == 2 and term.name == "smaller"
+
 #return found, continue
 def backchain_ask(kb, goal, subs, depth, prove):
     if len(goal) == 0:
@@ -184,7 +190,10 @@ def backchain_ask(kb, goal, subs, depth, prove):
             return True, False
 
         print_subs(subs)
-        return True, input("Find more (y/n)? ") == 'y'
+
+        c = getch.getch()
+        print(';' if c == ';' else '.')
+        return True, c == ';'
 
     q = substitute(goal[0], subs_to_dict(subs))
 
@@ -203,6 +212,12 @@ def backchain_ask(kb, goal, subs, depth, prove):
     if is_cut(q):
         found, _ = backchain_ask(kb, goal[1:], subs, depth, prove)
         return found, False
+
+    if is_smaller(q):
+        if term_to_string(q.arg[0]) < term_to_string(q.arg[1]):
+            return backchain_ask(kb, goal[1:], subs, depth, prove)
+        else:
+            return False, True
 
     found = False
     cont = True
@@ -231,7 +246,7 @@ def inference(kb, goal):
 
 def parse_goal(s):
     n, lterm = parse.parse_list_term(s, 0, len(s))
-    if n != len(s):
+    if n != len(s) and s[n] != '.':
         raise Exception(f"{n + 1}: Unexpected end token {s[n]}")
 
     return lterm
@@ -250,8 +265,9 @@ except Exception as e:
 else:
     while True:
         try:
-            goal = input("Goals: ")
+            goal = input("?- ")
         except Exception as e:
+            print("halt")
             break
         else:
             try:
