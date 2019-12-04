@@ -225,7 +225,7 @@ def backchain_ask(kb, goal, subs, depth, prove):
 
 def inference(kb, goal):
     #backward chaining
-    found, cont = backchain_ask(kb, goal, ([], []), 0, False)
+    found, _ = backchain_ask(kb, goal, ([], []), 0, False)
     if not found:
         print('no')
 
@@ -236,7 +236,27 @@ def parse_goal(s):
 
     return lterm
 
-kb = parse.load_kb("/home/vuonghy2442/Downloads/AI.pl")
-while True:
-    goal = parse_goal(input("Goals: "))
-    inference(kb, goal)
+from sys import argv
+
+if len(argv) != 2:
+    print("Usage: python3 main.py <file.pl>")
+    print("python >=3.6")
+    print("Not support number, ; yet")
+
+try:
+    kb = parse.load_kb(argv[1])    
+except Exception as e:
+    print(str(e))
+else:
+    while True:
+        try:
+            goal = input("Goals: ")
+        except Exception as e:
+            break
+        else:
+            try:
+                goal = parse_goal(goal)
+            except Exception as e:
+                print(str(e))
+            else:
+                inference(kb, goal)
