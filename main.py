@@ -195,7 +195,6 @@ def is_smaller(term):
 def backchain_ask(kb, goal, subs, depth, prove):
     global aborted
     if aborted:
-        print("\raborted")
         return False, False
 
     if len(goal) == 0:
@@ -236,6 +235,9 @@ def backchain_ask(kb, goal, subs, depth, prove):
     cont = True
 
     for p in kb:
+        if aborted:
+            return found, False
+
         p = standardize(p, depth)
         subs2 = unify([p.imp] + subs[0], [q] + subs[1], subs_to_set(subs))
         if subs2 is not None:
@@ -256,7 +258,9 @@ def inference(kb, goal):
     global aborted
     aborted = False
     found, _ = backchain_ask(kb, goal, ([], []), 0, False)
-    if not aborted and not found:
+    if aborted:
+        print("\raborted")
+    elif not found:
         print('no.')
 
 def parse_goal(s):

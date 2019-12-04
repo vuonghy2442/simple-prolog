@@ -72,7 +72,7 @@ def parse_list_term(s, start, end):
 
 def parse_term(s, start, end):
     for i in range(start, end + 1):
-        if i == end or s[i] == ',' or s[i] == '.' or s[i] == '(' or s[i] == ')':
+        if i == end or s[i] == ':' or s[i] == ',' or s[i] == '.' or s[i] == '(' or s[i] == ')':
             name = parse_name(s, start, i, i == end or s[i] != '(')
 
             if name == '':
