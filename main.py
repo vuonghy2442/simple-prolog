@@ -2,6 +2,14 @@ import parse
 from collections import namedtuple
 import getch
 import sys
+from sys import argv
+import signal
+
+aborted = False
+
+def handler(signum, frame):
+    global aborted
+    aborted = True
 
 #substitution subs is a dict
 
@@ -185,6 +193,12 @@ def is_smaller(term):
 
 #return found, continue
 def backchain_ask(kb, goal, subs, depth, prove):
+    global aborted
+    if aborted:
+        print("\raborted")
+        aborted = False
+        return False, False
+
     if len(goal) == 0:
         if prove:
             return True, False
@@ -240,6 +254,8 @@ def backchain_ask(kb, goal, subs, depth, prove):
 
 def inference(kb, goal):
     #backward chaining
+    global aborted
+    aborted = False
     found, _ = backchain_ask(kb, goal, ([], []), 0, False)
     if not found:
         print('no.')
@@ -251,7 +267,7 @@ def parse_goal(s):
 
     return lterm
 
-from sys import argv
+signal.signal(signal.SIGINT, handler)
 
 if len(argv) != 2:
     print("Usage: python3 main.py <file.pl>")

@@ -1,4 +1,5 @@
+same(X,X).
 sum(zero, M, M).
 sum(s(N), M, s(K)) :- sum(N, M, K).
-prod(zero, X, zero).
+prod(zero, _, zero).
 prod(s(N), M, P) :- sum(M, K, P), prod(M, N, K).
