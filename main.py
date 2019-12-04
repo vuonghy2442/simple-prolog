@@ -166,7 +166,7 @@ def print_subs(subs):
         s.append(f"{x.name} = {term_to_string(y)}")
     
     if len(s) == 0:
-        print('yes')
+        print('yes', end = '')
     else:
         print(', '.join(s), end = '')
     sys.stdout.flush()
@@ -242,7 +242,7 @@ def inference(kb, goal):
     #backward chaining
     found, _ = backchain_ask(kb, goal, ([], []), 0, False)
     if not found:
-        print('no')
+        print('no.')
 
 def parse_goal(s):
     n, lterm = parse.parse_list_term(s, 0, len(s))
