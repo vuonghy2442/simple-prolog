@@ -10,23 +10,32 @@ from collections import namedtuple
 Term = namedtuple('Term', 'name arg')
 Sentence = namedtuple('Sentence', 'imp pcnd')
 
-def parse_name(s, start, end):
+#if literal = False then name cannot be upper case
+def parse_name(s, start, end, literal):
     i = start
     while i < end and s[i].isspace():
         i += 1
 
     if i == end:
-        raise Exception(f"{i + 1}: Name should not be empty")
+        return ''
 
     name = ''
 
-    if not s[i].isalpha():
-        raise Exception(f"{i + 1}: Name should start with a english character not '{s[i]}'")
-
-    while i < end and s[i].isalnum():
-        name += s[i]
+    if s[i] == '!' and literal:
+        #cut
+        name = '!'
         i += 1
-    
+    else:
+        if not s[i].isalpha():
+            raise Exception(f"{i + 1}: Name should start with a english character not '{s[i]}'")
+
+        if not literal and s[i].isupper():
+            raise Exception(f"{i + 1}: Unexpected variable")
+
+        while i < end and (s[i].isalnum() or s[i] == '_'):
+            name += s[i]
+            i += 1
+        
     while i < end and s[i].isspace():
         i += 1
 
@@ -37,6 +46,8 @@ def parse_name(s, start, end):
 
 def parse_list_term(s, start, end):
     j = start
+
+    n = end
 
     lterm = []
     while (j < end):
@@ -53,8 +64,11 @@ def parse_list_term(s, start, end):
 
 def parse_term(s, start, end):
     for i in range(start, end + 1):
-        if i == end or s[i] == ',' or s[i] == '(' or s[i] == ')':
-            name = parse_name(s, start, i)
+        if i == end or s[i] == ',' or s[i] == '.' or s[i] == '(' or s[i] == ')':
+            name = parse_name(s, start, i, i == end or s[i] != '(')
+
+            if name == '':
+                raise Exception(f"{i + 1}: Name should not be empty")
 
             if i == end or s[i] != '(':
                 arg = [] #no args
@@ -66,9 +80,7 @@ def parse_term(s, start, end):
                 raise Exception(f"{j + 1}: Expected bracket close for the bracket open at {i + 1}")
             
             j += 1
-            while j < end and s[j] != ',' and s[j] != ')':
-                if not s[j].isspace():
-                    raise Exception(f"{j + 1}: Unexpected character '{s[j]}' (expected ',' or ')')")
+            while j < end and s[j].isspace():
                 j += 1
 
             n = j
@@ -76,49 +88,37 @@ def parse_term(s, start, end):
     
     return n, Term(name = name, arg = arg)
 
-
-def parse_goal(s, start = 0, end = -1):
-    if end == -1:
-        end = len(s)
-
-    n, pcnd = parse_list_term(s, start, end)
-
-    if n != end:
-        raise Exception(f"{n + 1}: Unexpected stop token '{s[n]}' in pre-condition term")
-
-    return pcnd
-
 def parse_sentence(s, start, end):
-    pos = s.find(":-", start, end)
+    n, imp = parse_term(s, start, end)
 
-    if pos < 0:
-        pos = len(s)
-
-    n, imp = parse_term(s, start, pos)
-
-    if n != pos:
-        raise Exception(f"{n + 1}: Unexpected stop token '{s[n]}' in implication term")
-
-    if pos == len(s):
-        pcnd = [] #no pre condition
+    if n < end and s[n] != '.':
+        if n + 1 >= end or s[n:n + 2] != ':-':
+            raise Exception(f"{n + 1} Expected '.' or ':-'")
+        n, pcnd = parse_list_term(s, n + 2, end)
     else:
-        pcnd = parse_goal(s, pos + 2, end)
+        pcnd = [] #no pre condition
 
-    return Sentence(imp = imp, pcnd = pcnd)
+    if n == end or s[n] != '.':
+        raise Exception(f"{n + 1} Expected '.'")
+    
+    n += 1
 
-def load_kb(file):
-    f = open(file)
+    return n, Sentence(imp = imp, pcnd = pcnd)
 
+def parse_kb(s):
     kb = []
 
-    for i, l in enumerate(f):
-        try:
-            kb.append(parse_sentence(l, 0, len(l)))
-        except Exception as e:
-            print(f"Error at line {i + 1}, col {str(e)}")
+    start = 0
+    while start < len(s):
+        start, sen = parse_sentence(s, start, len(s))
+        if sen is not None:
+            kb.append(sen)
+    
+    return kb
 
-    f.close()
-
+def load_kb(file_name):
+    with open(file_name, 'r') as file:
+        kb = parse_kb(file.read().strip())
     return kb
 
 if __name__ == "__main__":

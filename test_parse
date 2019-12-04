@@ -1,10 +1,11 @@
-first
-human(first)
-love(human (first), second) :- hihi
-love(human (fi_rst), first)
-hihi :- love(first, human(first)
-hihi :- :-
-bug :=
+
+first.
+human(first).
+love(human (first), second) :- hihi.
+love(human (fi_rst), first).
+hihi :- love(first, human(first).
+hihi :- :-.
+bug :=.
  :- abc
 leulue, abc
 (first)

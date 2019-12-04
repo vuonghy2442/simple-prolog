@@ -1,4 +1,4 @@
-love(a,b)
-love(b,c)
-love(X,Y):-love(X,Z),love(Z,Y)
-love(X,Y):-love(Y,X)
+neg(X):-X,!,fail.
+neg(X).
+love(a,b).
+love(b,c).

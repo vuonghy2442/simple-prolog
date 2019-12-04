@@ -168,34 +168,75 @@ def print_subs(subs):
     else:
         print(','.join(s))
 
-def backchain_ask(kb, goal, subs, depth, stack):
+def is_cut(term):
+    return len(term.arg) == 0 and term.name == "!"
+
+def is_fail(term):
+    return len(term.arg) == 0 and term.name == "fail"
+
+def is_not(term):
+    return len(term.arg) == 1 and term.name == "not"
+
+#return found, continue
+def backchain_ask(kb, goal, subs, depth, prove):
     if len(goal) == 0:
+        if prove:
+            return True, False
+
         print_subs(subs)
-        return input("Continue (y/n)? ") == 'y'
+        return True, input("Find more (y/n)? ") == 'y'
 
     q = substitute(goal[0], subs_to_dict(subs))
 
-    #check if exist in stack
-    #bug because the rename is sensitive to position
+    if is_fail(q):
+        return False, True
+
+    if is_not(q):
+        found, _ = backchain_ask(kb, q.arg, subs, depth, True)
+        if found:
+            #if provable then no
+            return False, True
+        else:
+            #if not provable then continue
+            return backchain_ask(kb, goal[1:], subs, depth, prove)
+
+    if is_cut(q):
+        found, _ = backchain_ask(kb, goal[1:], subs, depth, prove)
+        return found, False
+
+    found = False
+    cont = True
 
     for p in kb:
         p = standardize(p, depth)
         subs2 = unify([p.imp] + subs[0], [q] + subs[1], subs_to_set(subs))
         if subs2 is not None:
             new_goal = p.pcnd + goal[1:]
-            if not backchain_ask(kb, new_goal, subs2, depth + 1, stack):
-                return False
+            f, cont = backchain_ask(kb, new_goal, subs2, depth + 1, prove)
+            found = found or f
+            
+            if found and prove:
+                return True, False #already found one instance
 
-    #stack.remove(cq)
+            if not cont:
+                break
 
-    return True
+    return found, cont
 
 def inference(kb, goal):
     #backward chaining
-    if backchain_ask(kb, goal, ([], []), 0, set()):
+    found, cont = backchain_ask(kb, goal, ([], []), 0, False)
+    if not found:
         print('no')
 
-kb = parse.load_kb("test_sum")
+def parse_goal(s):
+    n, lterm = parse.parse_list_term(s, 0, len(s))
+    if n != len(s):
+        raise Exception(f"{n + 1}: Unexpected end token {s[n]}")
+
+    return lterm
+
+kb = parse.load_kb("/home/vuonghy2442/Downloads/AI.pl")
 while True:
-    goal = parse.parse_goal(input("Goals: "))
+    goal = parse_goal(input("Goals: "))
     inference(kb, goal)
