@@ -10,8 +10,12 @@ from collections import namedtuple
 Term = namedtuple('Term', 'name arg')
 Sentence = namedtuple('Sentence', 'imp pcnd')
 
+unique_id = 0
+
 #if literal = False then name cannot be upper case
 def parse_name(s, start, end, literal):
+    global unique_id
+
     i = start
     while i < end and s[i].isspace():
         i += 1
@@ -24,6 +28,10 @@ def parse_name(s, start, end, literal):
     if s[i] == '!' and literal:
         #cut
         name = '!'
+        i += 1
+    elif s[i] == '_' and literal:
+        name = 'G/' + str(unique_id)
+        unique_id += 1
         i += 1
     else:
         if not s[i].isalpha():
