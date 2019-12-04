@@ -30,19 +30,38 @@ def parse_name(s, start, end, literal):
         name = '!'
         i += 1
     elif s[i] == '_' and literal:
-        name = 'G/' + str(unique_id)
+        name = '//' + str(unique_id)
         unique_id += 1
         i += 1
     else:
-        if not s[i].isalpha():
-            raise Exception(f"{i + 1}: Name should start with a english character not '{s[i]}'")
-
-        if not literal and s[i].isupper():
-            raise Exception(f"{i + 1}: Unexpected variable")
-
-        while i < end and (s[i].isalnum() or s[i] == '_'):
-            name += s[i]
+        if s[i] == '\'':
             i += 1
+            j = s.find('\'', i, end)
+            if j < 0:
+                raise Exception(f"{end + 1}: not closing \"'\" at {i+1}")
+
+            t = s.find('/', i, j)
+            if t >= 0:
+                raise Exception(f"{t+ 1}: variable name cannot contain '/'")
+            
+            name = s[i:j]
+            i = j + 1
+        else:
+            if not s[i].isalpha():
+                raise Exception(f"{i + 1}: Name should start with a english character not '{s[i]}'")
+
+            if not literal and s[i].isupper():
+                raise Exception(f"{i + 1}: Unexpected variable")
+
+            j = i
+            while j < end and (s[j].isalnum() or s[j] == '_'):
+                j += 1
+
+            name = s[i:j]
+            if name[0].isupper():
+                name = '/' + name
+
+            i = j
         
     while i < end and s[i].isspace():
         i += 1

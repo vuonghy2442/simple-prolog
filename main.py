@@ -14,7 +14,7 @@ def handler(signum, frame):
 #substitution subs is a dict
 
 def is_var(term):
-    if term.name[0].isupper():
+    if term.name[0] == '/':
         if (len(term.arg) > 0):
             raise Exception("Variable cannot have arguments")
         return True
@@ -132,7 +132,7 @@ def unify(eq1, eq2, done_var = set()):
 
 def stand_term(term, idx):
     if is_var(term):
-        return parse.Term(name = term.name + "/" + str(idx), arg = [])
+        return parse.Term(name = term.name + "//" + str(idx), arg = [])
     else:
         return parse.Term(name = term.name, arg = [stand_term(x, idx) for x in term.arg])
 
@@ -158,20 +158,34 @@ def lterm_rename(lterm, subs):
 def lterm_to_string(lterm):
     return ','.join([term_to_string(x) for x in lterm])
 
+def need_quote(s):
+    for c in s:
+        if not c.isalnum() and c != '_':
+            return True
+    return False
+
+def name_to_string(term):
+    if is_var(term):
+        return term.name[1:]
+    elif need_quote(term.name):
+        return f"'{term.name}'"
+    else:
+        return term.name
+
 def term_to_string(term):
     if len(term.arg) == 0:
-        return term.name
+        return name_to_string(term)
     else:
-        return term.name + '(' + lterm_to_string(term.arg) + ')'
+        return name_to_string(term) + '(' + lterm_to_string(term.arg) + ')'
 
 def print_subs(subs):
     s = []
     for x, y in zip(*subs):
         assert(is_var(x))
-        if x.name.find("/") >= 0:
+        if x.name.find("//") >= 0:
             continue
 
-        s.append(f"{x.name} = {term_to_string(y)}")
+        s.append(f"{name_to_string(x)} = {term_to_string(y)}")
     
     if len(s) == 0:
         print('yes', end = '')
@@ -276,6 +290,7 @@ if len(argv) != 2:
     print("Usage: python3 main.py <file.pl>")
     print("python >=3.6")
     print("Not support number, ; yet")
+    quit()
 
 try:
     kb = parse.load_kb(argv[1])    
