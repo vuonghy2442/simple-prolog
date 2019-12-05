@@ -16,18 +16,22 @@ def handler(signum, frame):
 def is_var(term):
     return term.name[0] == '/'
 
-def substitute(term, subs):
+#substitute
+def sas_term(term, depth, subs):
     if term.name[0] == '/': #is_var(term) but inline
         if term.name in subs:
             return subs[term.name]
+        elif term.name[1] != '/':
+            #standarize
+            return parse.Term(name = "//" + str(depth) + "/" + term.name, arg = [])
         else:
             return term
     else:
-        new_arg = [substitute(x, subs) for x in  term.arg]
+        new_arg = [sas_term(x, depth, subs) for x in  term.arg]
         return parse.Term(name = term.name, arg = new_arg)
 
-def lsubstitute(lterm, subs):
-    return [substitute(x, subs) for x in  lterm]
+def sas_lterm(lterm, depth, subs):
+    return [sas_term(x, depth, subs) for x in  lterm]
 
 def term_equal(p, q):
     if p.name != q.name or len(p.arg) != len(q.arg):
@@ -63,9 +67,7 @@ def simple_unify(t1, t2, subs):
                     return False
     else:
         if is_var(t2):
-            t = t1
-            t1 = t2
-            t2 = t
+            t1, t2 = t2, t1
 
         if t1.name in subs:
             if not simple_unify(subs[t1.name], t2, subs):
@@ -114,8 +116,8 @@ def remove_ref(subs):
     return done
 
 def stand_term(term, idx):
-    if is_var(term):
-        return parse.Term(name = term.name + "//" + str(idx), arg = [])
+    if is_var(term) and term.name[1] != '/':
+        return parse.Term(name = "//" + str(idx) + "/" + term.name, arg = [])
     else:
         return parse.Term(name = term.name, arg = [stand_term(x, idx) for x in term.arg])
 
@@ -134,7 +136,7 @@ def need_quote(s):
 
 def name_to_string(term, full):
     if is_var(term):
-        if not full and term.name.find("//") >= 0:
+        if not full and term[:2] == "//":
             return '_'
         else:
             return term.name[1:]
@@ -159,7 +161,7 @@ def print_subs(subs, full):
     s = []
     for x, y in subs.items():
         x = parse.Term(x, [])
-        if not full and x.name.find("//") >= 0:
+        if not full and x.name[:2] == "//":
             continue
         
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
@@ -185,15 +187,25 @@ def is_not(term):
 def is_smaller(term):
     return len(term.arg) == 2 and term.name == "smaller"
 
-def unify(eq1, eq2, subs):
-    new_subs = dict(subs)
+def unify(eq1, eq2):
+    new_subs = dict()
     if not simple_unify(eq1, eq2, new_subs):
         return None
 
     return remove_ref(new_subs)
 
+def trace_subs(term, subs_stack):
+    if not subs_stack:
+        return term
+
+    #if is_var(term):
+    #    if term.name in subs_stack[-1]:
+    #        full_term = trace_subs(subs_stack[0][term.name], subs_stack[1:])
+            
+
+
 #return found, continue
-def backchain_ask(kb, goal, subs, depth, prove):
+def backchain_ask(kb, goal, subs_stack, depth, prove):
     global aborted
     if aborted:
         return False, False
@@ -202,7 +214,9 @@ def backchain_ask(kb, goal, subs, depth, prove):
         if prove:
             return True, False
 
-        print_subs(subs, False)
+        for x in subs_stack:
+            print_subs(x, True)
+            print()
 
         c = getch.getch()
         print(';' if c == ';' else '.')
@@ -215,21 +229,21 @@ def backchain_ask(kb, goal, subs, depth, prove):
         return False, True
 
     if is_not(q):
-        found, _ = backchain_ask(kb, q.arg, subs, depth, True)
+        found, _ = backchain_ask(kb, q.arg, subs_stack, depth, True)
         if found:
             #if provable then no
             return False, True
         else:
             #if not provable then continue
-            return backchain_ask(kb, goal[1:], subs, depth, prove)
+            return backchain_ask(kb, goal[1:], subs_stack, depth, prove)
 
     if is_cut(q):
-        found, _ = backchain_ask(kb, goal[1:], subs, depth, prove)
+        found, _ = backchain_ask(kb, goal[1:], subs_stack, depth, prove)
         return found, False
 
     if is_smaller(q):
         if term_to_string(q.arg[0], True) < term_to_string(q.arg[1], True):
-            return backchain_ask(kb, goal[1:], subs, depth, prove)
+            return backchain_ask(kb, goal[1:], subs_stack, depth, prove)
         else:
             return False, True
 
@@ -240,21 +254,22 @@ def backchain_ask(kb, goal, subs, depth, prove):
         if aborted:
             return found, False
 
-        p = standardize(p, depth)
-
-        new_subs = unify(p.imp, q, subs)
+        new_subs = unify(p.imp, q)
 
         if new_subs is None:
             continue
 
-        keep_subs = {}
+        #subs standardize
+        std_subs = {}
         for x, y in new_subs.items():
-            if x.find("//") < 0:
-                keep_subs[x] = y
+            std_subs[x] = stand_term(y, depth)
 
-        new_goal = lsubstitute(p.pcnd + goal[1:], new_subs)
+        new_goal = sas_lterm(p.pcnd + goal[1:], depth, std_subs)
 
-        f, cont = backchain_ask(kb, new_goal, keep_subs, depth + 1, prove)
+        subs_stack.append(std_subs)
+        f, cont = backchain_ask(kb, new_goal, subs_stack, depth + 1, prove)
+        subs_stack.pop()
+
         found = found or f
         
         if found and prove:
@@ -269,7 +284,7 @@ def inference(kb, goal):
     #backward chaining
     global aborted
     aborted = False
-    found, _ = backchain_ask(kb, goal, {}, 0, False)
+    found, _ = backchain_ask(kb, goal,[], 0, False)
     if aborted:
         print("\raborted")
     elif not found:
@@ -303,7 +318,6 @@ else:
             break
         else:
             try:
-
                 goal = parse_goal(goal)
             except Exception as e:
                 print(str(e))
