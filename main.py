@@ -72,6 +72,9 @@ def simple_unify(t1, t2, subs):
         if is_var(t2):
             t1, t2 = t2, t1
 
+        if is_var(t2) and t1.name == t2.name:
+            return True
+
         if t1.name in subs:
             if not simple_unify(subs[t1.name], t2, subs):
                 return False
