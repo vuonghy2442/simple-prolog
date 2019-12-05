@@ -30,7 +30,7 @@ def parse_name(s, start, end, literal):
         name = '!'
         i += 1
     elif s[i] == '_' and literal:
-        name = '//' + str(unique_id)
+        name = '/_' + str(unique_id)
         unique_id += 1
         i += 1
     else:

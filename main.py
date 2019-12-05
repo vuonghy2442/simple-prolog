@@ -16,6 +16,9 @@ def handler(signum, frame):
 def is_var(term):
     return term.name[0] == '/'
 
+def stand_name(s, depth):
+    return "//" + str(depth) + s
+
 #substitute
 def sas_term(term, depth, subs):
     if term.name[0] == '/': #is_var(term) but inline
@@ -23,7 +26,7 @@ def sas_term(term, depth, subs):
             return subs[term.name]
         elif term.name[1] != '/':
             #standarize
-            return parse.Term(name = "//" + str(depth) + "/" + term.name, arg = [])
+            return parse.Term(name = stand_name(term.name, depth), arg = [])
         else:
             return term
     else:
@@ -115,15 +118,11 @@ def remove_ref(subs):
     
     return done
 
-def stand_term(term, idx):
+def stand_term(term, depth):
     if is_var(term) and term.name[1] != '/':
-        return parse.Term(name = "//" + str(idx) + "/" + term.name, arg = [])
+        return parse.Term(name = stand_name(term.name, depth), arg = [])
     else:
-        return parse.Term(name = term.name, arg = [stand_term(x, idx) for x in term.arg])
-
-#change variable name so that they won't overlap
-def standardize(sen, idx):
-    return parse.Sentence(imp = stand_term(sen.imp, idx), pcnd =  [stand_term(x, idx) for x in sen.pcnd])
+        return parse.Term(name = term.name, arg = [stand_term(x, depth) for x in term.arg])
 
 def lterm_to_string(lterm, full):
     return ','.join([term_to_string(x, full) for x in lterm])
@@ -136,10 +135,13 @@ def need_quote(s):
 
 def name_to_string(term, full):
     if is_var(term):
-        if not full and term[:2] == "//":
+        if full:
+            return term.name[1:]
+        elif term.name[:4] != "//0/":
             return '_'
         else:
-            return term.name[1:]
+            return term.name[4:]
+
     elif need_quote(term.name):
         return f"'{term.name}'"
     else:
@@ -161,7 +163,7 @@ def print_subs(subs, full):
     s = []
     for x, y in subs.items():
         x = parse.Term(x, [])
-        if not full and x.name[:2] == "//":
+        if not full and x.name[:4] != "//0/":
             continue
         
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
@@ -194,14 +196,15 @@ def unify(eq1, eq2):
 
     return remove_ref(new_subs)
 
-def trace_subs(term, subs_stack):
-    if not subs_stack:
-        return term
-
-    #if is_var(term):
-    #    if term.name in subs_stack[-1]:
-    #        full_term = trace_subs(subs_stack[0][term.name], subs_stack[1:])
-            
+def trace_subs(subs_stack):
+    merge_subs = {}
+    for idx, subs in enumerate(subs_stack):
+        for var, term in subs.items():
+            if var[:2] != '//':
+                var = stand_name(var, idx + 1)
+            merge_subs[var] = term
+    
+    return remove_ref(merge_subs)
 
 
 #return found, continue
@@ -214,15 +217,13 @@ def backchain_ask(kb, goal, subs_stack, depth, prove):
         if prove:
             return True, False
 
-        for x in subs_stack:
-            print_subs(x, True)
-            print()
+        subs = trace_subs(subs_stack)
+        print_subs(subs, False)
 
         c = getch.getch()
         print(';' if c == ';' else '.')
         return True, c == ';'
 
-    #q = substitute(goal[0], subs)
     q = goal[0]
 
     if is_fail(q):
@@ -259,14 +260,12 @@ def backchain_ask(kb, goal, subs_stack, depth, prove):
         if new_subs is None:
             continue
 
-        #subs standardize
-        std_subs = {}
         for x, y in new_subs.items():
-            std_subs[x] = stand_term(y, depth)
+            new_subs[x] = stand_term(y, depth)
 
-        new_goal = sas_lterm(p.pcnd + goal[1:], depth, std_subs)
+        new_goal = sas_lterm(p.pcnd + goal[1:], depth, new_subs)
 
-        subs_stack.append(std_subs)
+        subs_stack.append(new_subs)
         f, cont = backchain_ask(kb, new_goal, subs_stack, depth + 1, prove)
         subs_stack.pop()
 
@@ -284,7 +283,8 @@ def inference(kb, goal):
     #backward chaining
     global aborted
     aborted = False
-    found, _ = backchain_ask(kb, goal,[], 0, False)
+    goal = sas_lterm(goal, 0, {})
+    found, _ = backchain_ask(kb, goal,[], 1, False)
     if aborted:
         print("\raborted")
     elif not found:
