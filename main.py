@@ -108,12 +108,13 @@ def remove_ref(subs):
             else:
                 return term
         else:
+            new_term = parse.Term(term.name, [ None ] * len(term.arg))
             for i in range(len(term.arg)):
-                term.arg[i] = remove_ref_term(term.arg[i], d, done, stack)
-                if term.arg[i] is None:
+                new_term.arg[i] = remove_ref_term(term.arg[i], d, done, stack)
+                if new_term.arg[i] is None:
                     return None
 
-            return term
+            return new_term
 
     d = dict(subs)
     done = {}
@@ -266,7 +267,7 @@ def backchain_ask(kb, goal, subs, depth, prove):
         print("\n" + '  ' * depth +  "subs: ", end = '')
         print_subs(new_subs, True)
         print("\n" + '  ' * depth + "goals:", end = '')
-        print_lterm(new_goal, True)
+        print_lterm([substitute(x, new_subs) for x in new_goal], False)
         print()
 
         f, cont = backchain_ask(kb, new_goal, new_subs, depth + 1, prove)
