@@ -143,6 +143,13 @@ def parse_kb(s):
     
     return kb
 
+def parse_goal(s):
+    n, lterm = parse_list_term(s, 0, len(s))
+    if n != len(s) and s[n] != '.':
+        raise Exception(f"{n + 1}: Unexpected end token {s[n]}")
+
+    return lterm
+
 def load_kb(file_name):
     with open(file_name, 'r') as file:
         kb = parse_kb(file.read().strip())

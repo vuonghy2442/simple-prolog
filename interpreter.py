@@ -1,6 +1,5 @@
 import parse
 from collections import namedtuple
-import sys
 
 aborted = False
 
@@ -152,29 +151,28 @@ def term_to_string(term, full):
     else:
         return name_to_string(term, full) + '(' + lterm_to_string(term.arg, full) + ')'
 
-def print_term(term, full):
-    print(term_to_string(term, full), endl = '')
+def filter_subs(subs):
+    new_subs = {}
 
-def print_lterm(lterm, full):
-    print(lterm_to_string(lterm, full), end = '')
+    for x, y in subs.items():
+        if x[:4] != "//0/" or x[4] == '_':
+            continue
+        new_subs[x] = y
 
-def print_subs(subs, full):
+    return new_subs
+
+def subs_to_string(subs, full):
     s = []
     for x, y in subs.items():
         x = parse.Term(x, [])
-        if not full and (x.name[:4] != "//0/" or x.name[4] == '_'):
-            continue
-        
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
     
-    if not s:
-        print('yes', end = '')
-    else:
-        print(', '.join(s), end = '')
-    sys.stdout.flush()
+    s.sort()
 
-def print_rule(rule, full):
-    print(term_to_string(rule.imp, full), " :- ", lterm_to_string(rule.pcnd, full), end = '')
+    if not s:
+        return 'yes'
+    else:
+        return ', '.join(s)
 
 def is_cut(term):
     return len(term.arg) == 0 and term.name == "!"
@@ -261,4 +259,5 @@ def inference(kb, goal):
     global aborted
     aborted = False
     goal = sas_lterm(goal, 0, {})
-    return backchain_ask(kb, goal,[], 1)
+    for subs_stack in backchain_ask(kb, goal,[], 1):
+        yield filter_subs(trace_subs(subs_stack))
