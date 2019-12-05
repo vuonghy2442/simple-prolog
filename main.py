@@ -14,21 +14,16 @@ def handler(signum, frame):
 #substitution subs is a dict
 
 def is_var(term):
-    if term.name[0] == '/':
-        if (len(term.arg) > 0):
-            raise Exception("Variable cannot have arguments")
-        return True
-    
-    return False
+    return term.name[0] == '/'
 
 def substitute(term, subs):
-    if is_var(term):
+    if term.name[0] == '/': #is_var(term) but inline
         if term.name in subs:
             return subs[term.name]
         else:
             return term
     else:
-        new_arg = [substitute(x, subs) for x in term.arg]
+        new_arg = [substitute(x, subs) for x in  term.arg]
         return parse.Term(name = term.name, arg = new_arg)
 
 def lsubstitute(lterm, subs):
@@ -57,34 +52,26 @@ def has_variable(term, var_name):
 #two list of equation :))
 #simple unify, not fully replaced all term, and can be contradictory
 #guarantee to return a dict
-def simple_unify(eq1, eq2, subs):
-    assert(len(eq1) == len(eq2))
-
-    for i in range(len(eq1)):
-        t1 = eq1[i]
-        t2 = eq2[i]
-        
-        if term_equal(t1, t2):
-            continue
-
-        if not is_var(t1) and not is_var(t2):
-            if t1.name != t2.name or len(t1.arg) != len(t2.arg):
-                #conflict
-                return False
-            else:
-                if not simple_unify(t1.arg, t2.arg, subs):
-                    return False
+def simple_unify(t1, t2, subs):
+    if not is_var(t1) and not is_var(t2):
+        if t1.name != t2.name or len(t1.arg) != len(t2.arg):
+            #conflict
+            return False
         else:
-            if is_var(t2):
-                t = t1
-                t1 = t2
-                t2 = t
-
-            if t1.name in subs:
-                if not simple_unify([subs[t1.name]], [t2], subs):
+            for x, y in zip(t1.arg, t2.arg):
+                if not simple_unify(x, y, subs):
                     return False
-            else:
-                subs[t1.name] = t2
+    else:
+        if is_var(t2):
+            t = t1
+            t1 = t2
+            t2 = t
+
+        if t1.name in subs:
+            if not simple_unify(subs[t1.name], t2, subs):
+                return False
+        else:
+            subs[t1.name] = t2
 
     return True
 
@@ -119,7 +106,7 @@ def remove_ref(subs):
     d = dict(subs)
     done = {}
 
-    while len(d) > 0:
+    while d:
         next_var = parse.Term(next(iter(d)), [])
         if remove_ref_term(next_var, d, done, set()) is None:
             return None
@@ -157,7 +144,7 @@ def name_to_string(term, full):
         return term.name
 
 def term_to_string(term, full):
-    if len(term.arg) == 0:
+    if not term.arg:
         return name_to_string(term, full)
     else:
         return name_to_string(term, full) + '(' + lterm_to_string(term.arg, full) + ')'
@@ -177,7 +164,7 @@ def print_subs(subs, full):
         
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
     
-    if len(s) == 0:
+    if not s:
         print('yes', end = '')
     else:
         print(', '.join(s), end = '')
@@ -221,7 +208,8 @@ def backchain_ask(kb, goal, subs, depth, prove):
         print(';' if c == ';' else '.')
         return True, c == ';'
 
-    q = substitute(goal[0], subs)
+    #q = substitute(goal[0], subs)
+    q = goal[0]
 
     if is_fail(q):
         return False, True
@@ -248,29 +236,25 @@ def backchain_ask(kb, goal, subs, depth, prove):
     found = False
     cont = True
 
-    print('-'*40)
     for p in kb:
         if aborted:
             return found, False
 
         p = standardize(p, depth)
 
-        new_subs = unify([p.imp], [q], subs)
+        new_subs = unify(p.imp, q, subs)
 
         if new_subs is None:
             continue
 
-        new_goal = p.pcnd + goal[1:]
+        keep_subs = {}
+        for x, y in new_subs.items():
+            if x.find("//") < 0:
+                keep_subs[x] = y
 
-        print('  ' * depth + "use rule: ", end = '')
-        print_rule(p, True)
-        print("\n" + '  ' * depth +  "subs: ", end = '')
-        print_subs(new_subs, True)
-        print("\n" + '  ' * depth + "goals:", end = '')
-        print_lterm([substitute(x, new_subs) for x in new_goal], False)
-        print()
+        new_goal = lsubstitute(p.pcnd + goal[1:], new_subs)
 
-        f, cont = backchain_ask(kb, new_goal, new_subs, depth + 1, prove)
+        f, cont = backchain_ask(kb, new_goal, keep_subs, depth + 1, prove)
         found = found or f
         
         if found and prove:
@@ -278,9 +262,6 @@ def backchain_ask(kb, goal, subs, depth, prove):
 
         if not cont:
             break
-
-    print('  ' * depth + "Backtrack")
-    print('-' * 40)
 
     return found, cont
 
