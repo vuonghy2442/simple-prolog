@@ -163,7 +163,7 @@ def print_subs(subs, full):
     s = []
     for x, y in subs.items():
         x = parse.Term(x, [])
-        if not full and x.name[:4] != "//0/":
+        if not full and (x.name[:4] != "//0/" or x.name[4] == '_'):
             continue
         
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
