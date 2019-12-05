@@ -208,37 +208,37 @@ def trace_subs(subs_stack):
 def backchain_ask(kb, goal, subs_stack, depth):
     global aborted
     if aborted:
-        raise Exception("aborted")
+        return False
 
     if len(goal) == 0:
         yield subs_stack
-        return
+        return True
 
     q = goal[0]
 
     if is_fail(q):
-        return
+        return True
 
     if is_not(q):
         gen = backchain_ask(kb, q.arg, subs_stack, depth)
         try:
-            next(gen) 
+            next(gen)
         except StopIteration:
-            yield from backchain_ask(kb, goal[1:], subs_stack, depth)
-        return
+            return (yield from backchain_ask(kb, goal[1:], subs_stack, depth))
+        return True
 
     if is_cut(q):
         yield from backchain_ask(kb, goal[1:], subs_stack, depth)
-        return
+        return False
 
     if is_smaller(q):
         if term_to_string(q.arg[0], True) < term_to_string(q.arg[1], True):
-            yield from backchain_ask(kb, goal[1:], subs_stack, depth)
-        return
+            return (yield from backchain_ask(kb, goal[1:], subs_stack, depth))
+        return True
 
     for p in kb:
         if aborted:
-            raise Exception("aborted")
+            return False
 
         new_subs = unify(p.imp, q)
 
@@ -251,13 +251,21 @@ def backchain_ask(kb, goal, subs_stack, depth):
         new_goal = sas_lterm(p.pcnd + goal[1:], depth, new_subs)
 
         subs_stack.append(new_subs)
-        yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)
+        if not (yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)):
+            return False
         subs_stack.pop()
+
+    return True
 
 def inference(kb, goal):
     #backward chaining
     global aborted
     aborted = False
     goal = sas_lterm(goal, 0, {})
+    
     for subs_stack in backchain_ask(kb, goal,[], 1):
         yield filter_subs(trace_subs(subs_stack))
+
+    if aborted:
+        aborted = False
+        raise Exception("aborted")

@@ -6,8 +6,7 @@ from sys import argv
 import signal
 
 def handler(signum, frame):
-    global aborted
-    aborted = True
+    interpreter.abort_inference()
 
 def inference(kb, goal):
     #backward chaining
@@ -28,6 +27,8 @@ def inference(kb, goal):
             print('no.')
     except Exception as e:
         print("\r" + str(e))
+    finally:
+        del gen
 
 signal.signal(signal.SIGINT, handler)
 
