@@ -1,4 +1,3 @@
-import main
 import parse
 import interpreter
 
@@ -6,8 +5,12 @@ kb1 = None
 kb2 = None
 kb3 = None
 
-def compare(truth, gen):
-    sol = [interpreter.subs_to_string(subs, False) for subs in gen]
+def compare(truth, gen, num = -1):
+    if num == -1:
+        sol = [interpreter.subs_to_string(subs, False) for subs in gen]
+    else:
+        sol = [interpreter.subs_to_string(next(gen), False) for i in range(num)]
+
     truth.sort()
     sol.sort()
 
@@ -60,6 +63,18 @@ def test1_6():
     gen = interpreter.inference(kb1, parse.parse_goal("prime(s(s(s(s(s(s(zero)))))))"))
     truth =  []
     compare(truth, gen)
+
+def test1_7():
+    global kb1
+    gen = interpreter.inference(kb1, parse.parse_goal("sum(X,zero,X),prime(X)"))
+    truth =  ['X = s(s(zero))',
+              'X = s(s(s(zero)))',
+              'X = s(s(s(s(s(zero)))))',
+              'X = s(s(s(s(s(s(s(zero)))))))',
+              'X = s(s(s(s(s(s(s(s(s(s(s(zero)))))))))))',
+              'X = s(s(s(s(s(s(s(s(s(s(s(s(s(zero)))))))))))))',
+            ]
+    compare(truth, gen, 6)
 
 def test2_1():
     global kb2

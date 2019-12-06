@@ -8,12 +8,11 @@ from collections import namedtuple
 #return (pos of the end tok, <term>)
 
 Term = namedtuple('Term', 'name arg')
-Sentence = namedtuple('Sentence', 'imp pcnd')
 
 unique_id = 0
 
 #if literal = False then name cannot be upper case
-def parse_name(s, start, end, literal):
+def parse_name(s, start, end):
     global unique_id
 
     i = start
@@ -21,15 +20,14 @@ def parse_name(s, start, end, literal):
         i += 1
 
     if i == end:
-        return ''
+        return i, ''
 
     name = ''
-
-    if s[i] == '!' and literal:
+    if s[i] == '!':
         #cut
         name = '!'
         i += 1
-    elif s[i] == '_' and literal:
+    elif s[i] == '_':
         name = '/_' + str(unique_id)
         unique_id += 1
         i += 1
@@ -50,9 +48,6 @@ def parse_name(s, start, end, literal):
             if not s[i].isalpha():
                 raise Exception(f"{i + 1}: Name should start with a english character not '{s[i]}'")
 
-            if not literal and s[i].isupper():
-                raise Exception(f"{i + 1}: Unexpected variable")
-
             j = i
             while j < end and (s[j].isalnum() or s[j] == '_'):
                 j += 1
@@ -66,12 +61,9 @@ def parse_name(s, start, end, literal):
     while i < end and s[i].isspace():
         i += 1
 
-    if i != end:
-        raise Exception(f"{i + 1}: Unexpected character '{s[i]}' in name")
+    return i, name
 
-    return name
-
-def parse_list_term(s, start, end):
+def parse_list(s, delim, start, end):
     j = start
 
     n = end
@@ -81,7 +73,7 @@ def parse_list_term(s, start, end):
         j, term = parse_term(s, j, end)
         lterm.append(term)
 
-        if j == end or s[j] != ',':
+        if j == end or s[j] != delim:
             n = j
             break
         
@@ -89,62 +81,64 @@ def parse_list_term(s, start, end):
     
     return n, lterm
 
+def parse_conjunction(s, start, end):
+    n, arg = parse_list(s, ',', start, end)
+    return n, Term(',', arg)
+
 def parse_term(s, start, end):
-    for i in range(start, end + 1):
-        if i == end or s[i] == ':' or s[i] == ',' or s[i] == '.' or s[i] == '(' or s[i] == ')':
-            name = parse_name(s, start, i, i == end or s[i] != '(')
+    i, name = parse_name(s, start, end)
 
-            if name == '':
-                raise Exception(f"{i + 1}: Name should not be empty")
+    if not name:
+        raise Exception(f"{i + 1}: Name should not be empty")
 
-            if i == end or s[i] != '(':
-                arg = [] #no args
-                n = i
-                break
-
-            j, arg = parse_list_term(s, i + 1, end)
-            if j == end or s[j] != ')':
-                raise Exception(f"{j + 1}: Expected bracket close for the bracket open at {i + 1}")
-            
-            j += 1
-            while j < end and s[j].isspace():
-                j += 1
-
-            n = j
-            break
+    if i == end or s[i] != '(':
+        return i, Term(name = name, arg = [])
     
-    return n, Term(name = name, arg = arg)
+    #if it is a variable means s[i]='('
+    if name[0] == '/':
+        raise Exception(f"{i + 1}: Variable can't have arguments")
 
-def parse_sentence(s, start, end):
+    j, arg = parse_list(s, ',', i + 1, end)    
+
+    if j == end or s[j] != ')':
+        raise Exception(f"{j + 1}: Expected bracket close for the bracket open at {i + 1}")
+            
+    j += 1
+    while j < end and s[j].isspace():
+        j += 1
+    
+    return j, Term(name = name, arg = arg)
+
+def parse_rule(s, start, end):
     n, imp = parse_term(s, start, end)
 
     if n < end and s[n] != '.':
         if n + 1 >= end or s[n:n + 2] != ':-':
             raise Exception(f"{n + 1} Expected '.' or ':-'")
-        n, pcnd = parse_list_term(s, n + 2, end)
+        n, pcnd = parse_conjunction(s, n + 2, end)
     else:
-        pcnd = [] #no pre condition
+        pcnd = Term(name = 'true', arg = []) #no pre condition
 
     if n == end or s[n] != '.':
         raise Exception(f"{n + 1} Expected '.'")
     
     n += 1
 
-    return n, Sentence(imp = imp, pcnd = pcnd)
+    return n, Term(name = ":-", arg = [imp, pcnd])
 
 def parse_kb(s):
     kb = []
 
     start = 0
     while start < len(s):
-        start, sen = parse_sentence(s, start, len(s))
+        start, sen = parse_rule(s, start, len(s))
         if sen is not None:
             kb.append(sen)
     
     return kb
 
 def parse_goal(s):
-    n, lterm = parse_list_term(s, 0, len(s))
+    n, lterm = parse_conjunction(s, 0, len(s))
     if n != len(s) and s[n] != '.':
         raise Exception(f"{n + 1}: Unexpected end token {s[n]}")
 

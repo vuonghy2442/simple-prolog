@@ -174,6 +174,9 @@ def subs_to_string(subs, full):
     else:
         return ', '.join(s)
 
+def is_true(term):
+    return len(term.arg) == 0 and term.name == "true"
+
 def is_cut(term):
     return len(term.arg) == 0 and term.name == "!"
 
@@ -185,6 +188,12 @@ def is_not(term):
 
 def is_smaller(term):
     return len(term.arg) == 2 and term.name == "smaller"
+
+def is_rule(term):
+    return len(term.arg) == 2 and term.name == ":-"
+
+def is_conjuction(term):
+    return term.name == ","
 
 def unify(eq1, eq2):
     new_subs = dict()
@@ -216,6 +225,9 @@ def backchain_ask(kb, goal, subs_stack, depth):
 
     q = goal[0]
 
+    if is_true(q):
+        return (yield from backchain_ask(kb, goal[1:], subs_stack, depth)) 
+
     if is_fail(q):
         return True
 
@@ -236,11 +248,17 @@ def backchain_ask(kb, goal, subs_stack, depth):
             return (yield from backchain_ask(kb, goal[1:], subs_stack, depth))
         return True
 
+    if is_conjuction(q):
+        return (yield from backchain_ask(kb, q.arg + goal[1:], subs_stack, depth))
+
+    #must be rule
     for p in kb:
+        assert(is_rule(p))
+
         if aborted:
             return False
 
-        new_subs = unify(p.imp, q)
+        new_subs = unify(p.arg[0], q)
 
         if new_subs is None:
             continue
@@ -248,7 +266,7 @@ def backchain_ask(kb, goal, subs_stack, depth):
         for x, y in new_subs.items():
             new_subs[x] = stand_term(y, depth)
 
-        new_goal = sas_lterm(p.pcnd + goal[1:], depth, new_subs)
+        new_goal = sas_lterm( [p.arg[1]] + goal[1:], depth, new_subs)
 
         subs_stack.append(new_subs)
         if not (yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)):
@@ -261,9 +279,9 @@ def inference(kb, goal):
     #backward chaining
     global aborted
     aborted = False
-    goal = sas_lterm(goal, 0, {})
-    
-    for subs_stack in backchain_ask(kb, goal,[], 1):
+    goal = sas_term(goal, 0, {})
+
+    for subs_stack in backchain_ask(kb, [goal],[], 1):
         yield filter_subs(trace_subs(subs_stack))
 
     if aborted:

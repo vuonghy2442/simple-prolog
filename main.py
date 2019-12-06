@@ -11,6 +11,7 @@ def handler(signum, frame):
 def inference(kb, goal):
     #backward chaining
     gen = interpreter.inference(kb, goal)
+
     try:
         found = False
         for subs in gen:
@@ -21,8 +22,7 @@ def inference(kb, goal):
             c = getch.getch()
             print(';' if c == ';' else '.')
             if c != ';':
-                break
-            
+                break    
         if not found:
             print('no.')
     except Exception as e:
@@ -38,20 +38,25 @@ if len(argv) != 2:
     print("Not support number, ; yet")
     quit()
 
+
 try:
     kb = parse.load_kb(argv[1])    
+    pass
 except Exception as e:
     print(str(e))
 else:
     while True:
+
         try:
             goal = input("?- ")
         except Exception as e:
             print("halt")
             quit()
 
+
         try:
             goal = parse.parse_goal(goal)
+            pass
         except Exception as e:
             print(str(e))
         else:
