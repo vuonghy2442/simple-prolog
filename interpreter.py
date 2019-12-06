@@ -126,6 +126,9 @@ def lterm_to_string(lterm, full):
     return ','.join([term_to_string(x, full) for x in lterm])
 
 def need_quote(s):
+    if not s[0].isalpha():
+        return True
+
     for c in s:
         if not c.isalnum() and c != '_':
             return True
@@ -134,6 +137,10 @@ def need_quote(s):
 def name_to_string(term, full):
     if is_var(term):
         if full:
+            return term.name[1:]
+        elif term.name.find("_") >= 0:
+            return '_'
+        elif term.name[:2] != '//':
             return term.name[1:]
         elif term.name[:4] != "//0/":
             return '_'
@@ -184,7 +191,7 @@ def is_fail(term):
     return len(term.arg) == 0 and term.name == "fail"
 
 def is_not(term):
-    return len(term.arg) == 1 and term.name == "not"
+    return len(term.arg) == 1 and (term.name == "not" or term.name == '\\+')
 
 def is_smaller(term):
     return len(term.arg) == 2 and term.name == "smaller"
@@ -192,8 +199,15 @@ def is_smaller(term):
 def is_rule(term):
     return len(term.arg) == 2 and term.name == ":-"
 
+def is_equal(term):
+    return len(term.arg) == 2 and term.name == "="
+
 def is_conjuction(term):
     return term.name == ","
+
+def is_disjuction(term):
+    return term.name == ";"
+
 
 def unify(eq1, eq2):
     new_subs = dict()
@@ -212,6 +226,27 @@ def trace_subs(subs_stack):
     
     return remove_ref(merge_subs)
 
+#p and q need to unify
+#cond is the condition list need to satify
+#goal is the rest of the goal
+def matching(p, q, cond, kb, goal, subs_stack, depth, need_std):
+    new_subs = unify(p, q)
+
+    if new_subs is None:
+        return True
+
+    if need_std:
+        for x, y in new_subs.items():
+            new_subs[x] = stand_term(y, depth)
+
+    new_goal = sas_lterm(cond + goal, depth, new_subs)
+
+    subs_stack.append(new_subs)
+    if not (yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)):
+        return False
+    subs_stack.pop()
+
+    return True
 
 #return found, continue
 def backchain_ask(kb, goal, subs_stack, depth):
@@ -251,27 +286,21 @@ def backchain_ask(kb, goal, subs_stack, depth):
     if is_conjuction(q):
         return (yield from backchain_ask(kb, q.arg + goal[1:], subs_stack, depth))
 
+    if is_disjuction(q):
+        for term in q.arg:
+            if not (yield from backchain_ask(kb, [term] + goal[1:], subs_stack, depth)):
+                return False
+        return True
+
+    if is_equal(q):
+        return (yield from matching(q.arg[0], q.arg[1], [], kb, goal[1:], subs_stack, depth, False))
+
     #must be rule
     for p in kb:
-        assert(is_rule(p))
-
         if aborted:
             return False
-
-        new_subs = unify(p.arg[0], q)
-
-        if new_subs is None:
-            continue
-
-        for x, y in new_subs.items():
-            new_subs[x] = stand_term(y, depth)
-
-        new_goal = sas_lterm( [p.arg[1]] + goal[1:], depth, new_subs)
-
-        subs_stack.append(new_subs)
-        if not (yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)):
+        if not (yield from matching(p.arg[0], q, [p.arg[1]], kb, goal[1:], subs_stack, depth, True)):
             return False
-        subs_stack.pop()
 
     return True
 

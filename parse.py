@@ -46,7 +46,7 @@ def parse_name(s, start, end):
             i = j + 1
         else:
             if not s[i].isalpha():
-                raise Exception(f"{i + 1}: Name should start with a english character not '{s[i]}'")
+                return i, ''
 
             j = i
             while j < end and (s[j].isalnum() or s[j] == '_'):
@@ -63,42 +63,64 @@ def parse_name(s, start, end):
 
     return i, name
 
-def parse_list(s, delim, start, end):
+def parse_list(s, delim, parser, start, end):
     j = start
 
-    n = end
-
     lterm = []
+
+    is_none = False
+
     while (j < end):
-        j, term = parse_term(s, j, end)
+        j, term = parser(s, j, end)
+        
+        if term is None:
+            is_none = True
+        
         lterm.append(term)
 
         if j == end or s[j] != delim:
-            n = j
             break
-        
+
         j += 1
     
-    return n, lterm
+    if is_none:
+        if len(lterm) > 1:
+            raise Exception(f"{j + 1}: Cannot have an empty term in the list")
+        else:
+            return j, []
 
-def parse_conjunction(s, start, end):
-    n, arg = parse_list(s, ',', start, end)
-    return n, Term(',', arg)
+    return j, lterm
+
+def parse_bracket(s, start, end):
+    assert(s[start] == '(')
+    
+    i, term = parse_conjunction(s, start + 1, end)
+
+    if i == end or s[i] != ')':
+        raise Exception(f"{i + 1}: Expected bracket close for the bracket open at {start + 1}")
+
+    return i + 1, term
 
 def parse_term(s, start, end):
+    while start < end and s[start].isspace():
+        start += 1
+    
+    if s[start] == '(':
+        return parse_bracket(s, start, end)
+
     i, name = parse_name(s, start, end)
 
     if not name:
-        raise Exception(f"{i + 1}: Name should not be empty")
+        return i, None
 
     if i == end or s[i] != '(':
         return i, Term(name = name, arg = [])
     
-    #if it is a variable means s[i]='('
+    #s[i]='(' => it cannot be a variable
     if name[0] == '/':
         raise Exception(f"{i + 1}: Variable can't have arguments")
 
-    j, arg = parse_list(s, ',', i + 1, end)    
+    j, arg = parse_list(s, ',', parse_term, i + 1, end)    
 
     if j == end or s[j] != ')':
         raise Exception(f"{j + 1}: Expected bracket close for the bracket open at {i + 1}")
@@ -109,8 +131,60 @@ def parse_term(s, start, end):
     
     return j, Term(name = name, arg = arg)
 
+def parse_2ary_op(s, start, end):
+    start, term1 = parse_term(s, start, end)
+
+    builder = None
+
+    if term1 is None:
+        #one ary op
+        if start + 1 < end and s[start:start + 2] == '\\+':
+            builder = lambda x , y : Term('\\+', [y])
+            start += 2
+    else:
+        if start + 1 < end and s[start:start + 2] == '\\=':
+            builder = lambda x , y : Term('\\+', [Term('=', [x,y])])
+            start += 2
+        elif start < end and s[start] == '=':
+            builder = lambda x , y : Term('=', [x,y])
+            start += 1
+
+    if builder is None:
+        return start, term1
+
+    start, term2 = parse_2ary_op(s, start, end)
+
+    if term2 is None:
+        raise Exception (f"{start + 1}: Expected a term here")
+
+    return start, builder(term1, term2)
+
+def parse_disjunction(s, start, end):
+    n, arg = parse_list(s, ';', parse_2ary_op, start, end)
+    
+    if len(arg) == 0:
+        return n, None
+    elif len(arg) == 1:
+        return n, arg[0]
+    else:
+        return n, Term(';', arg)
+
+
+def parse_conjunction(s, start, end):
+    n, arg = parse_list(s, ',', parse_disjunction, start, end)
+    
+    if len(arg) == 0:
+        return n, None
+    elif len(arg) == 1:
+        return n, arg[0]
+    else:
+        return n, Term(',', arg)
+
 def parse_rule(s, start, end):
     n, imp = parse_term(s, start, end)
+
+    if imp is None:
+        raise Exception(f"{n + 1}: Expected a term for rule")
 
     if n < end and s[n] != '.':
         if n + 1 >= end or s[n:n + 2] != ':-':
@@ -131,10 +205,14 @@ def parse_kb(s):
 
     start = 0
     while start < len(s):
+
         start, sen = parse_rule(s, start, len(s))
         if sen is not None:
             kb.append(sen)
     
+        while start < len(s) and s[start].isspace():
+            start += 1
+
     return kb
 
 def parse_goal(s):
@@ -146,7 +224,7 @@ def parse_goal(s):
 
 def load_kb(file_name):
     with open(file_name, 'r') as file:
-        kb = parse_kb(file.read().strip())
+        kb = parse_kb(file.read())
     return kb
 
 if __name__ == "__main__":

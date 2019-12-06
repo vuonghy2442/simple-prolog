@@ -29,35 +29,36 @@ def inference(kb, goal):
         print("\r" + str(e))
     finally:
         del gen
+def main():
+    signal.signal(signal.SIGINT, handler)
 
-signal.signal(signal.SIGINT, handler)
+    if len(argv) != 2:
+        print("Usage: python3 main.py <file.pl>")
+        print("python >=3.6")
+        print("Not support number, list yet")
+        quit()
 
-if len(argv) != 2:
-    print("Usage: python3 main.py <file.pl>")
-    print("python >=3.6")
-    print("Not support number, ; yet")
-    quit()
+    try:
+        kb = parse.load_kb(argv[1])
+    except Exception as e:
+        print(str(e))
+    else:
+        while True:
 
-
-try:
-    kb = parse.load_kb(argv[1])    
-    pass
-except Exception as e:
-    print(str(e))
-else:
-    while True:
-
-        try:
-            goal = input("?- ")
-        except Exception as e:
-            print("halt")
-            quit()
+            try:
+                goal = input("?- ")
+            except Exception as e:
+                print("halt")
+                quit()
 
 
-        try:
-            goal = parse.parse_goal(goal)
-            pass
-        except Exception as e:
-            print(str(e))
-        else:
-            inference(kb, goal)
+            try:
+                goal = parse.parse_goal(goal)
+                pass
+            except Exception as e:
+                print(str(e))
+            else:
+                inference(kb, goal)
+
+if __name__ == "__main__":
+    main()
