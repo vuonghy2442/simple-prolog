@@ -145,6 +145,12 @@ def parse_2ary_op(s, start, end):
         if start + 1 < end and s[start:start + 2] == '\\=':
             builder = lambda x , y : Term('\\+', [Term('=', [x,y])])
             start += 2
+        elif start + 1 < end and s[start:start + 2] == '@<':
+            builder = lambda x , y : Term('@<', [x,y])
+            start += 2
+        elif start + 1 < end and s[start:start + 2] == '@>':
+            builder = lambda x , y : Term('@<', [y,x])
+            start += 2
         elif start < end and s[start] == '=':
             builder = lambda x , y : Term('=', [x,y])
             start += 1

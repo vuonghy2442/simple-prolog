@@ -194,7 +194,7 @@ def is_not(term):
     return len(term.arg) == 1 and (term.name == "not" or term.name == '\\+')
 
 def is_smaller(term):
-    return len(term.arg) == 2 and term.name == "smaller"
+    return len(term.arg) == 2 and term.name == "@<"
 
 def is_rule(term):
     return len(term.arg) == 2 and term.name == ":-"

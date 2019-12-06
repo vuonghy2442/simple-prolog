@@ -74,6 +74,30 @@ def test0_1():
     truth =  ['yes']
     compare(truth, gen)
 
+def test0_2():
+    kb = []
+    gen = interpreter.inference(kb, parse.parse_goal("X=a"))
+    truth =  ['X = a']
+    compare(truth, gen)
+
+def test0_3():
+    kb = []
+    gen = interpreter.inference(kb, parse.parse_goal("a=b"))
+    truth =  []
+    compare(truth, gen)
+
+def test0_4():
+    kb = []
+    gen = interpreter.inference(kb, parse.parse_goal("a@<b"))
+    truth =  ['yes']
+    compare(truth, gen)
+
+def test0_5():
+    kb = []
+    gen = interpreter.inference(kb, parse.parse_goal("Y@<X"))
+    truth =  []
+    compare(truth, gen)
+
 def test1_1():
     kb1 = parse.load_kb("./test_sum")
     gen = interpreter.inference(kb1, parse.parse_goal("sum(zero,X,X)"))
