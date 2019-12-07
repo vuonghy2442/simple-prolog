@@ -9,7 +9,6 @@ def handler(signum, frame):
     interpreter.abort_inference()
 
 def inference(kb, goal):
-    #backward chaining
     gen = interpreter.inference(kb, goal)
 
     try:
@@ -29,6 +28,7 @@ def inference(kb, goal):
         print("\r" + str(e))
     finally:
         del gen
+
 def main():
     signal.signal(signal.SIGINT, handler)
 

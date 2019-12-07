@@ -38,7 +38,7 @@ def test_parse():
     compare_parse("hihi :- xyz.", "':-'(hihi,xyz)")
     compare_parse("hihi :- 'xyz'.", "':-'(hihi,xyz)")
     compare_parse("hihi :- 'leu leu'.", "':-'(hihi,'leu leu')")
-    compare_parse("hihi :- Xyz().", None)
+    compare_parse("hihi :- Xyz().", "':-'(hihi,Xyz)")
     compare_parse("hihi :- xyz().", "':-'(hihi,xyz)")
     compare_parse("hihi :- xyz,abc.", "':-'(hihi,','(xyz,abc))")
     compare_parse("hihi :- xyz,abc,'ghi k'.", "':-'(hihi,','(xyz,abc,'ghi k'))")
