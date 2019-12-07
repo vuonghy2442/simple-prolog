@@ -17,11 +17,12 @@ def stand_name(s, depth):
 #substitute
 def sas_term(term, depth, subs):
     if term.name[0] == '/': #is_var(term) but inline
+        #standarize
+        if term.name[1] != '/':
+            term = parse.Term(name = stand_name(term.name, depth), arg = [])
+
         if term.name in subs:
             return subs[term.name]
-        elif term.name[1] != '/':
-            #standarize
-            return parse.Term(name = stand_name(term.name, depth), arg = [])
         else:
             return term
     else:
@@ -55,7 +56,8 @@ def has_variable(term, var_name):
 #simple unify, not fully replaced all term, and can be contradictory
 #guarantee to return a dict
 def simple_unify(t1, t2, subs):
-    if not is_var(t1) and not is_var(t2):
+    #if not is_var(t1) and not is_var(t2):
+    if t1.name[0] != '/' and t2.name[0] != '/':
         if t1.name != t2.name or len(t1.arg) != len(t2.arg):
             #conflict
             return False
@@ -64,11 +66,13 @@ def simple_unify(t1, t2, subs):
                 if not simple_unify(x, y, subs):
                     return False
     else:
-        if is_var(t2):
-            t1, t2 = t2, t1
-
-        if is_var(t2) and t1.name == t2.name:
+        #one of them is variable so it has / in the name
+        if t1.name == t2.name:
             return True
+
+        #if is_var(t2):
+        if t2.name[0] == '/':
+            t1, t2 = t2, t1
 
         if t1.name in subs:
             if not simple_unify(subs[t1.name], t2, subs):
@@ -79,28 +83,37 @@ def simple_unify(t1, t2, subs):
     return True
 
 #replacify
-def remove_ref(subs):
-    def remove_ref_term(term, d, done, stack):
+def remove_ref(subs, depth):
+    def remove_ref_term(term, depth, d, done, stack):
         if is_var(term):
+            #standardize here
+            old_term = term
+
+            #standardizing name
+            if depth >= 0 and term.name[1] != '/':
+                term =  parse.Term(name = stand_name(term.name, depth), arg = [])
+
             if term.name in stack:
                 return None #self recursive
             elif term.name in done:
                 return done[term.name] #done need to do recursive
-            elif term.name in d:
-                new_term = d.pop(term.name)
+            elif old_term.name in d:
+                new_term = d.pop(old_term.name)
 
                 stack.add(term.name)
-                new_term = remove_ref_term(new_term, d, done, stack)
+                new_term = remove_ref_term(new_term, depth, d, done, stack)
                 stack.remove(term.name)
 
+                #already standardize
                 done[term.name] = new_term
                 return new_term
             else:
+                #already standardize
                 return term
         else:
             new_term = parse.Term(term.name, [ None ] * len(term.arg))
             for i in range(len(term.arg)):
-                new_term.arg[i] = remove_ref_term(term.arg[i], d, done, stack)
+                new_term.arg[i] = remove_ref_term(term.arg[i], depth, d, done, stack)
                 if new_term.arg[i] is None:
                     return None
 
@@ -111,16 +124,17 @@ def remove_ref(subs):
 
     while d:
         next_var = parse.Term(next(iter(d)), [])
-        if remove_ref_term(next_var, d, done, set()) is None:
+        if remove_ref_term(next_var, depth, d, done, set()) is None:
             return None
     
     return done
 
-def stand_term(term, depth):
-    if is_var(term) and term.name[1] != '/':
+def stand_var(term, depth):
+    assert(is_var(term))
+    if term.name[1] != '/':
         return parse.Term(name = stand_name(term.name, depth), arg = [])
     else:
-        return parse.Term(name = term.name, arg = [stand_term(x, depth) for x in term.arg])
+        return term
 
 def lterm_to_string(lterm, full):
     return ','.join([term_to_string(x, full) for x in lterm])
@@ -209,12 +223,12 @@ def is_disjuction(term):
     return term.name == ";"
 
 
-def unify(eq1, eq2):
+def unify(eq1, eq2, depth):
     new_subs = dict()
     if not simple_unify(eq1, eq2, new_subs):
         return None
 
-    return remove_ref(new_subs)
+    return remove_ref(new_subs, depth)
 
 def trace_subs(subs_stack):
     merge_subs = {}
@@ -224,20 +238,16 @@ def trace_subs(subs_stack):
                 var = stand_name(var, idx + 1)
             merge_subs[var] = term
     
-    return remove_ref(merge_subs)
+    return remove_ref(merge_subs, -1)
 
 #p and q need to unify
 #cond is the condition list need to satify
 #goal is the rest of the goal
-def matching(p, q, cond, kb, goal, subs_stack, depth, need_std):
-    new_subs = unify(p, q)
+def matching(p, q, cond, kb, goal, subs_stack, depth, std):
+    new_subs = unify(p, q, depth if std else -1)
 
     if new_subs is None:
         return True
-
-    if need_std:
-        for x, y in new_subs.items():
-            new_subs[x] = stand_term(y, depth)
 
     new_goal = sas_lterm(cond + goal, depth, new_subs)
 
