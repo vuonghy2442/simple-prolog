@@ -5,9 +5,11 @@ import sys
 from sys import argv
 import signal
 
+# Handle ctrl+C
 def handler(signum, frame):
     interpreter.abort_inference()
 
+# Do inference and interacting with terminal
 def inference(kb, goal):
     gen = interpreter.inference(kb, goal)
 
@@ -15,19 +17,25 @@ def inference(kb, goal):
         found = False
         for subs in gen:
             found = True
+            # Print out the result
             print(interpreter.subs_to_string(subs, False), end = '')
-            sys.stdout.flush()
 
+            # Without flush the output is not shown yet when we getch
+            sys.stdout.flush()
             c = getch.getch()
             print(';' if c == ';' else '.')
+            # Only continue to print more result when input ';'
             if c != ';':
-                break    
+                break
+
+        # If no solution is found then print no.
         if not found:
             print('no.')
     except Exception as e:
         print("\r" + str(e))
-    finally:
-        del gen
+
+    # Clean up
+    del gen
 
 def main():
     signal.signal(signal.SIGINT, handler)
@@ -38,27 +46,31 @@ def main():
         print("Not support number, list yet")
         quit()
 
+    # Tries to load the knowledge base, if there is any parsing error shown
     try:
         kb = parse.load_kb(argv[1])
     except Exception as e:
         print(str(e))
-    else:
-        while True:
+        return
 
-            try:
-                goal = input("?- ")
-            except Exception as e:
-                print("halt")
-                quit()
+    # repeatedly get the query
+    while True:
+        try:
+            goal = input("?- ")
+        except Exception as e:
+            # When get EOF (from ctrl-D)
+            print("halt")
+            return
 
-
-            try:
-                goal = parse.parse_goal(goal)
-                pass
-            except Exception as e:
-                print(str(e))
-            else:
-                inference(kb, goal)
+        # Tries to parse the query
+        try:
+            goal = parse.parse_goal(goal)
+            pass
+        except Exception as e:
+            print(str(e))
+        else:
+            # Do inference
+            inference(kb, goal)
 
 if __name__ == "__main__":
     main()

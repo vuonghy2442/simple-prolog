@@ -1,116 +1,122 @@
 import parse
 from collections import namedtuple
 
+# Whether the task is aborted
 aborted = False
 
+# Giving an interface to set abort
 def abort_inference():
     global aborted
     aborted = True
 
-#substitution subs is a dict
+# Check if a term is a variable
+# Call is quite expensive, so when the task is critical, tries to use inline check
 def is_var(term):
     return term.name[0] == '/'
 
+# Return standardized name, should only call when s is a non standardized name
 def stand_name(s, depth):
     return "//" + str(depth) + s
 
-#substitute
+# Substitute and standardize (sas)
+# Assume that the subs is already standardized
 def sas_term(term, depth, subs):
     if term.name[0] == '/': #is_var(term) but inline
-        #standarize
+        # if the variable is not standarized then do it
         if term.name[1] != '/':
             term = parse.Term(name = stand_name(term.name, depth), arg = [])
 
+        # check if it is in the substituion dict
         if term.name in subs:
             return subs[term.name]
         else:
             return term
     else:
+        # If it is a predicate, then recursively do sas for its arguments
         new_arg = [sas_term(x, depth, subs) for x in  term.arg]
         return parse.Term(name = term.name, arg = new_arg)
 
+# Do sas for a list of terms
 def sas_lterm(lterm, depth, subs):
     return [sas_term(x, depth, subs) for x in  lterm]
 
-def term_equal(p, q):
-    if p.name != q.name or len(p.arg) != len(q.arg):
-        return False
-
-    for x, y in zip(p.arg, q.arg):
-        if not term_equal(x, y):
-            return False
-
-    return True
-
-def has_variable(term, var_name):
-    if is_var(term):
-        return term.name == var_name
-
-    for x in term.arg:
-        if has_variable(x, var_name):
-            return True
-
-    return False
-
-#two list of equation :))
-#simple unify, not fully replaced all term, and can be contradictory
-#guarantee to return a dict
+# t1, t2 is 2 terms
+# Do simple unify that t1 = t2
+# This is not guarantee to return a non referencing substitution dict
+# This function is called a lot
+# Return true iif unifiable
 def simple_unify(t1, t2, subs):
-    #if not is_var(t1) and not is_var(t2):
+    # Inline check that if both is not variable
     if t1.name[0] != '/' and t2.name[0] != '/':
         if t1.name != t2.name or len(t1.arg) != len(t2.arg):
-            #conflict
+            # If they are not compatible then return false
             return False
         else:
+            # If they are compatible then tries to unify its arguments
             for x, y in zip(t1.arg, t2.arg):
                 if not simple_unify(x, y, subs):
                     return False
     else:
-        #one of them is variable so it has / in the name
+        # At least one of the terms is a variable
+
+        # If both term is the same variable e.g. X=X then it's unifiable
         if t1.name == t2.name:
             return True
 
-        #if is_var(t2):
+        #if t2 is a variable then switch it with t1
         if t2.name[0] == '/':
             t1, t2 = t2, t1
 
+        # Now t1 must be a variable, we have the subsituion t1 = t2
         if t1.name in subs:
+            # If t1 is already in the dict, we cannot add it to the dict again
+            # We tries to unify 2 substituion t1 = subs[t1], and t1 = t2
             if not simple_unify(subs[t1.name], t2, subs):
                 return False
         else:
+            # Else just add to the substituion dict
             subs[t1.name] = t2
 
     return True
 
-#replacify
+# This function will tries to remove referencing in the simply_unify result
+# It is also tries to standardize the subtituion dict when depth >= 0
 def remove_ref(subs, depth):
+    # d is the non-standardized/dereferenced substituion dict
+    # done is standardized and non-selfreferencing
+    # stack is a set that stores the parent terms
     def remove_ref_term(term, depth, d, done, stack):
         if is_var(term):
-            #standardize here
+            # Save the old term to search in the non-standardized subs dict d
             old_term = term
 
-            #standardizing name
+            # Standardizing name
             if depth >= 0 and term.name[1] != '/':
                 term =  parse.Term(name = stand_name(term.name, depth), arg = [])
 
+            # Self substition (except X = X which is removed in simple unify) is not okay e.g. X = f(X)
             if term.name in stack:
-                return None #self recursive
+                return None
             elif term.name in done:
-                return done[term.name] #done need to do recursive
+                # if the variable is in done, no need to do anything further
+                return done[term.name]
             elif old_term.name in d:
+                # if the variable is in d
                 new_term = d.pop(old_term.name)
 
+                # tries to remove_ref it self
                 stack.add(term.name)
                 new_term = remove_ref_term(new_term, depth, d, done, stack)
                 stack.remove(term.name)
 
-                #already standardize
+                # the new term is standardized
                 done[term.name] = new_term
                 return new_term
             else:
-                #already standardize
+                #already standardized and not found in substitution dict
                 return term
         else:
+            # if it is a predicate, tries to remove refs its arguments, if any of its arguments fails, the process fails
             new_term = parse.Term(term.name, [ None ] * len(term.arg))
             for i in range(len(term.arg)):
                 new_term.arg[i] = remove_ref_term(term.arg[i], depth, d, done, stack)
@@ -122,6 +128,7 @@ def remove_ref(subs, depth):
     d = dict(subs)
     done = {}
 
+    # while the d dict is still not empty, get one substitution and remove reference from it
     while d:
         next_var = parse.Term(next(iter(d)), [])
         if remove_ref_term(next_var, depth, d, done, set()) is None:
@@ -129,15 +136,12 @@ def remove_ref(subs, depth):
     
     return done
 
-def stand_var(term, depth):
-    assert(is_var(term))
-    if term.name[1] != '/':
-        return parse.Term(name = stand_name(term.name, depth), arg = [])
-    else:
-        return term
+def unify(eq1, eq2, depth):
+    new_subs = dict()
+    if not simple_unify(eq1, eq2, new_subs):
+        return None
 
-def lterm_to_string(lterm, full):
-    return ','.join([term_to_string(x, full) for x in lterm])
+    return remove_ref(new_subs, depth)
 
 def need_quote(s):
     if not s[0].isalpha():
@@ -171,6 +175,9 @@ def term_to_string(term, full):
         return name_to_string(term, full)
     else:
         return name_to_string(term, full) + '(' + lterm_to_string(term.arg, full) + ')'
+
+def lterm_to_string(lterm, full):
+    return ','.join([term_to_string(x, full) for x in lterm])
 
 def filter_subs(subs):
     new_subs = {}
@@ -221,14 +228,6 @@ def is_conjuction(term):
 
 def is_disjuction(term):
     return term.name == ";"
-
-
-def unify(eq1, eq2, depth):
-    new_subs = dict()
-    if not simple_unify(eq1, eq2, new_subs):
-        return None
-
-    return remove_ref(new_subs, depth)
 
 def trace_subs(subs_stack):
     merge_subs = {}

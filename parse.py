@@ -282,6 +282,7 @@ def parse_rule(s, start):
     return skip_space(s, n + 1), Term(name = ":-", arg = [imp, pcnd])
 
 # Parse knowledge base
+# Knowledge base is just a list of rule
 def parse_kb(s):
     kb = []
 
@@ -293,6 +294,7 @@ def parse_kb(s):
 
     return kb
 
+# Parse goal, goal is a term (not containing rules)
 def parse_goal(s):
     n, lterm = parse_conjunction(s, 0)
     if n < len(s) and s[n] != '.':
