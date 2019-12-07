@@ -34,7 +34,7 @@ def compare_parse(rule, truth_str):
         assert(rule == truth_str)
 
 def test_parse():
-    compare_parse("hihi.", "':-'(hihi,true)")
+    compare_parse("  hihi.", "':-'(hihi,true)")
     compare_parse("hihi :- xyz.", "':-'(hihi,xyz)")
     compare_parse("hihi :- 'xyz'.", "':-'(hihi,xyz)")
     compare_parse("hihi :- 'leu leu'.", "':-'(hihi,'leu leu')")

@@ -26,7 +26,8 @@ unique_id = 0
 # The return position should not be a space character
 
 # Currently parsing is having the following chain (or cycle?)
-#   1. Parse rule <term> :- <list of term>. or <term>. Each term will be parse by parse conjunction
+#   0. Parse knowledge base: Contain many terms, each term is a rule
+#   1. Parse rule: <term> :- <list of term>. or <term>. Each term will be parse by parse conjunction
 #   2. Parse conjuction <term1>, <term2>,... will be parse to ','(<list of term>) 
 #       terms will be parsed by parse disjunction
 #       if The list of term has only one term. Then that term will be return instead
@@ -296,6 +297,11 @@ def parse_kb(s):
     kb = []
 
     start = 0
+
+    # Remove prefix spaces
+    while start < len(s) and s[start].isspace():
+        start += 1
+
     while start < len(s):
 
         start, sen = parse_rule(s, start, len(s))
@@ -308,7 +314,13 @@ def parse_kb(s):
     return kb
 
 def parse_goal(s):
-    n, lterm = parse_conjunction(s, 0, len(s))
+
+    #remove prefix spaces
+    i = 0
+    while i < len(s) and s[i].isspace():
+        i += 1
+
+    n, lterm = parse_conjunction(s, i, len(s))
     if n != len(s) and s[n] != '.':
         raise Exception(f"{n + 1}: Unexpected end token {s[n]}")
 
