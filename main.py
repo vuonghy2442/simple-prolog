@@ -33,7 +33,7 @@ def inference(kb, goal):
             print('no.')
     except Exception as e:
         print("\r" + str(e))
-
+    print()
     # Clean up
     del gen
 
