@@ -209,31 +209,26 @@ def parse_term(s, start):
 def parse_op(s, start):
     start, term1 = parse_term(s, start)
 
-    builder = None
+    Operator = namedtuple('Operator', 'name ary builder')
+    ops = [ Operator('\\+', 1, lambda x , y : Term('\\+', [y])),
+            Operator('=', 2, lambda x , y : Term('=', [x,y])),
+            Operator('\\=', 2, lambda x , y : Term('\\+', [Term('=', [x,y])])),
+            Operator('@<', 2, lambda x , y : Term('@<', [x,y])),
+            Operator('@>', 2, lambda x , y : Term('@<', [y,x]))
+        ]
 
-    if term1 is None:
-        # Find if any unary operator matches
-        if start + 1 < len(s) and s[start:start + 2] == '\\+':
-            builder = lambda x , y : Term('\\+', [y])
-            start += 2
-    else:
-        # Find if any binary operator matches
-        if start + 1 < len(s) and s[start:start + 2] == '\\=':
-            builder = lambda x , y : Term('\\+', [Term('=', [x,y])])
-            start += 2
-        elif start + 1 < len(s) and s[start:start + 2] == '@<':
-            builder = lambda x , y : Term('@<', [x,y])
-            start += 2
-        elif start + 1 < len(s) and s[start:start + 2] == '@>':
-            builder = lambda x , y : Term('@<', [y,x])
-            start += 2
-        elif start < len(s) and s[start] == '=':
-            builder = lambda x , y : Term('=', [x,y])
-            start += 1
+    #Find the matching operator
+    builder = None
+    for op in ops:
+        if (term1 is not None or op.ary == 1) and s[start:start + len(op.name)] == op.name:
+            builder = op.builder
+            break
 
     if builder is None:
         return start, term1
 
+    start += len(op.name)
+    
     # Parse the second term
     start, term2 = parse_op(s, start)
 
@@ -278,7 +273,7 @@ def parse_rule(s, start):
 
     # check if there is :- if not then parse as <imp term> :- true
     if n < len(s) and s[n] != '.':
-        if n + 1 >= len(s) or s[n:n + 2] != ':-':
+        if s[n:n + 2] != ':-':
             raise Exception(f"{n + 1} Expected '.' or ':-'")
         n, pcnd = parse_disjunction(s, n + 2)
     else:

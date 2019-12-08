@@ -42,7 +42,7 @@ def test_parse():
     compare_parse("hihi :- xyz().", "':-'(hihi,xyz)")
     compare_parse("hihi :- xyz,abc.", "':-'(hihi,','(xyz,abc))")
     compare_parse("hihi :- xyz,abc,'ghi k'.", "':-'(hihi,','(xyz,abc,'ghi k'))")
-    compare_parse("hihi :- xyz,abc;'leu x' ='ley','ghi k'.", "':-'(hihi,','(xyz,';'(abc,'='('leu x',ley)),'ghi k'))")
+    compare_parse("hihi :- xyz,abc;'leu x' ='ley','ghi k'.", "':-'(hihi,';'(','(xyz,abc),','('='('leu x',ley),'ghi k')))")
     compare_parse("hihi :- xyz( uv, s(ab)).", "':-'(hihi,xyz(uv,s(ab)))")
     compare_parse("hihi,tv :- xyz( uv, s(ab)).", None)
     compare_parse("Hihi.", "':-'(Hihi,true)")
