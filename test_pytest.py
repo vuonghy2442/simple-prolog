@@ -10,9 +10,7 @@ def compare(truth, gen, num = -1):
     truth.sort()
     sol.sort()
 
-    assert(len(truth) == len(sol))
-    for a, b in zip(truth, sol):
-        assert(a == b)
+    assert(truth == sol)
 
 def check_term_valid(term):
     assert(term is not None)
@@ -61,124 +59,158 @@ def test_parse():
     compare_parse("test(abc) :- xyz).", None)
     compare_parse("a(X,Y):-b(X),(c(Y);d(Y)).", "':-'(a(X,Y),','(b(X),';'(c(Y),d(Y))))") 
 
-
+def query(kb, query, truth, num = -1):
+    gen = interpreter.inference(kb, parse.parse_goal(query))
+    compare(truth, gen, num)
 
 def test_load():
-    parse.load_kb("./test_sum")
-    parse.load_kb("./test_puzzle")
-    parse.load_kb("./test_infer")
+    parse.load_kb("./test_sum.pl")
+    parse.load_kb("./test_puzzle.pl")
+    parse.load_kb("./test_infer.pl")
 
-def test0_1():
-    kb = []
-    gen = interpreter.inference(kb, parse.parse_goal("X=X"))
-    truth =  ['yes']
-    compare(truth, gen)
-
-def test0_2():
-    kb = []
-    gen = interpreter.inference(kb, parse.parse_goal("X=a"))
-    truth =  ['X = a']
-    compare(truth, gen)
-
-def test0_3():
-    kb = []
-    gen = interpreter.inference(kb, parse.parse_goal("a=b"))
-    truth =  []
-    compare(truth, gen)
-
-def test0_4():
-    kb = []
-    gen = interpreter.inference(kb, parse.parse_goal("a@<b"))
-    truth =  ['yes']
-    compare(truth, gen)
-
-def test0_5():
-    kb = []
-    gen = interpreter.inference(kb, parse.parse_goal("Y@<X"))
-    truth =  []
-    compare(truth, gen)
+def test0():
+    query([], "X=X", ["yes"])
+    query([], "X=a", ["X = a"])
+    query([], "a=b", [])
+    query([], "a@<b", ["yes"])
+    query([], "Y @< X", [])
 
 def test1_1():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("sum(zero,X,X)"))
-    truth =  ['X = _']
-    compare(truth, gen)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "sum(zero,X,X)", ['X = _'])
 
 def test1_2():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("prod(X,Y,s(s(s(s(s(s(zero)))))))"))
-    truth =  ['X = s(zero), Y = s(s(s(s(s(s(zero))))))',
-              'X = s(s(zero)), Y = s(s(s(zero)))',
-              'X = s(s(s(zero))), Y = s(s(zero))',
-              'X = s(s(s(s(s(s(zero)))))), Y = s(zero)'
-            ]
-    compare(truth, gen)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "prod(X,Y,s(s(s(s(s(s(zero)))))))",
+        [   'X = s(zero), Y = s(s(s(s(s(s(zero))))))',
+            'X = s(s(zero)), Y = s(s(s(zero)))',
+            'X = s(s(s(zero))), Y = s(s(zero))',
+            'X = s(s(s(s(s(s(zero)))))), Y = s(zero)'
+        ])
 
 def test1_3():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("prod(X,Y,zero)"))
-    truth =  ['X = zero, Y = _', 'X = s(_), Y = zero']
-    compare(truth, gen)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "prod(X,Y,zero)", ['X = zero, Y = _', 'X = s(_), Y = zero'])
 
 def test1_4():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("prime(zero)"))
-    truth =  []
-    compare(truth, gen)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "prime(zero)", [])
 
 def test1_5():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("prime(s(s(s(zero))))"))
-    truth =  ['yes']
-    compare(truth, gen)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "prime(s(s(s(zero))))", ['yes'])
 
 def test1_6():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("prime(s(s(s(s(s(s(zero)))))))"))
-    truth =  []
-    compare(truth, gen)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "prod(s(s(zero)),s(s(s(zero))),X), prime(X)", [])
+    query(kb1, "prime(s(s(s(s(s(s(zero)))))))", [])
 
 def test1_7():
-    kb1 = parse.load_kb("./test_sum")
-    gen = interpreter.inference(kb1, parse.parse_goal("sum(X,zero,X),prime(X)"))
-    truth =  ['X = s(s(zero))',
-              'X = s(s(s(zero)))',
-              'X = s(s(s(s(s(zero)))))',
-              'X = s(s(s(s(s(s(s(zero)))))))',
-              'X = s(s(s(s(s(s(s(s(s(s(s(zero)))))))))))',
-              'X = s(s(s(s(s(s(s(s(s(s(s(s(s(zero)))))))))))))',
-            ]
-    compare(truth, gen, 6)
+    kb1 = parse.load_kb("./test_sum.pl")
+    query(kb1, "sum(X,zero,X),prime(X)",
+        [   'X = s(s(zero))',
+            'X = s(s(s(zero)))',
+            'X = s(s(s(s(s(zero)))))',
+            'X = s(s(s(s(s(s(s(zero)))))))',
+            'X = s(s(s(s(s(s(s(s(s(s(s(zero)))))))))))',
+            'X = s(s(s(s(s(s(s(s(s(s(s(s(s(zero)))))))))))))',
+        ],
+        6
+    )
 
 def test2_1():
-    kb2 = parse.load_kb("./test_puzzle")
+    kb2 = parse.load_kb("./test_puzzle.pl")
 
-    gen = interpreter.inference(kb2, parse.parse_goal("puzzle(Houses)"))
-    truth =  ['Houses = list(house(yellow,norwegian,water_,dunhill,cat),'
-                'house(blue,danish,tea,blend,horse),'
-                'house(red,british,milk,pall_mall,bird),'
-                'house(green,german,coffee,prince,_),'
-                'house(white,swedish,beer,bluemaster,dog))'
-            ]
-    compare(truth, gen)
+    query(kb2, "puzzle(Houses)",
+        [   'Houses = list(house(yellow,norwegian,water_,dunhill,cat),'
+            'house(blue,danish,tea,blend,horse),'
+            'house(red,british,milk,pall_mall,bird),'
+            'house(green,german,coffee,prince,_),'
+            'house(white,swedish,beer,bluemaster,dog))'
+        ])
 
 def test3_1():
-    kb3 = parse.load_kb("./test_infer")
-
-    gen = interpreter.inference(kb3, parse.parse_goal("neg(love(a,b))"))
-    truth =  []
-    compare(truth, gen)
+    kb3 = parse.load_kb("./test_infer.pl")
+    query(kb3, "neg(love(a,b))", [])
 
 def test3_2():
-    kb3 = parse.load_kb("./test_infer")
-
-    gen = interpreter.inference(kb3, parse.parse_goal("neg(love(a,c))"))
-    truth =  ["yes"]
-    compare(truth, gen)
+    kb3 = parse.load_kb("./test_infer.pl")
+    query(kb3, "neg(love(a,c))", ['yes'])
 
 def test3_3():
-    kb3 = parse.load_kb("./test_infer")
+    kb3 = parse.load_kb("./test_infer.pl")
+    query(kb3, "neg(love(a,c)), fail", [])
 
-    gen = interpreter.inference(kb3, parse.parse_goal("neg(love(a,b)),fail"))
-    truth =  []
-    compare(truth, gen)
+def test_ai1():
+    kb = parse.load_kb("./AI.pl")
+    query(kb, "wife(X,charles)", ['X = camilla_Parker_Bowles'])
+    query(kb, "husband(mark_Philips, anne)", [])
+    query(kb, "father(philip,anne)", ['yes'])
+    query(kb, "mother(X, william)", ['X = diana'])
+    query(kb, "child(X,andrew)", ['X = eugenie', 'X = beatrice'])
+    query(kb, "son(X,william)", ['X = george', 'X = louis'])
+    query(kb, "daughter(X,edward_Earl)", ['X = louise_Windsor'])
+    query(kb, "grandparent(X,george)", ['X = diana', 'X = charles'])
+    query(kb, "grandmother(diana, george)", ['yes'])
+    query(kb, "grandfather(X,peter_Phillips)", ['X = philip'])
+    query(kb, "grandson(X,elizabethII)", ['X = william', 'X = harry', 'X = peter_Phillips', 'X = james'])
+    query(kb, "grandchild(X,diana)", ['X = george', 'X = charlotte', 'X = louis', 'X = harrison_Mountbatten_Windsor'])
+    query(kb, "granddaughter(X,philip)", ['X = eugenie', 'X = beatrice', 'X = zara_Tindall', 'X = louise_Windsor'])
+    query(kb, "sibling(eugenie,beatrice)", ['yes'])
+    query(kb, "brother(X,harry)", ['X = william'])
+    query(kb, "sister(X,peter_Phillips)", ['X = zara_Tindall'])
+    query(kb, "uncle(X,zara_Tindall)", ['X = charles','X = andrew', 'X = edward_Earl'])
+    query(kb, "aunt(X,james)", ['X = anne'])
+    query(kb, "niece(X,edward_Earl)", ['X = eugenie', 'X = beatrice', 'X = zara_Tindall'])
+    query(kb, "nephew(X,andrew)", ['X = william', 'X = harry', 'X = peter_Phillips', 'X = james'])
+    query(kb, "sibling(X,Y),X@<Y", 
+        [   'X = charles, Y = edward_Earl',
+            'X = andrew, Y = charles',
+            'X = andrew, Y = anne',
+            'X = andrew, Y = edward_Earl',
+            'X = anne, Y = charles',
+            'X = anne, Y = edward_Earl',
+            'X = harry, Y = william',
+            'X = beatrice, Y = eugenie',
+            'X = george, Y = louis',
+            'X = charlotte, Y = george',
+            'X = charlotte, Y = louis',
+            'X = peter_Phillips, Y = zara_Tindall',
+            'X = james, Y = louise_Windsor'
+        ])    
+
+def test_ai2():
+    kb = parse.load_kb("./AI2.pl")
+    query(kb, "bird(X)", ['X = eagle', 'X = sparrow'])
+    query(kb, "vertebrata(X)", 
+        ['X = eagle', 'X = sparrow', 'X = tiger', 
+         'X = bear', 'X = frog', 'X = salamander',
+         'X = turtle', 'X = crocodile', 'X = gold_fish', 'X = carp'
+        ])
+
+    query(kb, "coldBlooded(X)", ['X = frog', 'X = salamander', 'X = turtle', 'X = crocodile', 'X = gold_fish', 'X = carp'])
+    query(kb, "hotBlooded(eagle)", ['yes'])
+    query(kb, "molluscs(octopus)", ['yes'])
+    query(kb, "invertebrates(bear)", [])
+    query(kb, "liveOnland(X)", ['X = eagle', 'X = sparrow', 'X = tiger', 'X = bear', 'X = salamander'])
+    query(kb, "liveUnderwater(spider)", ['yes']) #wut ??
+    query(kb, "plantae(bamboo)", ['yes'])
+    query(kb, "gymnosperms(X)", ['X = ginkgophyta', 'X = pine', 'X = cycadophyta'])
+    query(kb, "angiosperms(tomato)", ['yes'])
+    query(kb, "twoCotyledons(X)", ['X = coconut', 'X = tomato', 'X = rose'])
+    query(kb, "kingdom(X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera'])
+    query(kb, "thuocGioi(plantae, vertebrata)", [])
+    query(kb, "hon1Bac(animalia, grainy_plantae)", ['yes'])
+    query(kb, "cungBac(fungi,X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera'])
+    query(kb, "thuocNganh(vertebrata, reptilia)", ['yes'])
+    query(kb, "amphibia(X)", ['X = frog', 'X = salamander'])
+    query(kb, "coLongVu(X)", ['X = eagle', 'X = sparrow'])
+    query(kb, "breastfeeding(X)", ['X = tiger', 'X = bear'])
+
+
+
+
+
+
+
+    
