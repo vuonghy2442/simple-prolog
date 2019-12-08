@@ -43,7 +43,7 @@ unique_id = 0
 #       If the first character is started with '(', it means this term is enclosed in a bracket, 
 #           then call parse bracket to parse this term
 #       First parse name
-#       If there is a bracket, then parse the list inside the bracket by parse term
+#       If there is a bracket, then parse the list inside the bracket by parse op
 #   6. Parse bracket:
 #       Check for the closing bracket
 #       Restart the parse chain by parsing the term by parse disjunction
@@ -53,7 +53,7 @@ unique_id = 0
 # Normally, name must start with an alphabet character
 # After the first character, it can contains alphabet, digit, or '_'
 # For constant, other character (except '/') is permitted when put inside the quote '...'
-# Special name like '!', '_' needs to be handle
+# Special name like '_' needs to be handle
 # Automatically add '/' to variable name
 # Assume that s[start] is not space
 # Also skip comments % and /* */
@@ -87,10 +87,7 @@ def _parse_name(s, start):
     name = ''
 
     # Check special name
-    if s[i] == '!':
-        name = '!'
-        i += 1
-    elif s[i] == '_':
+    if s[i] == '_':
         name = '/_' + str(unique_id)
         unique_id += 1
         i += 1
@@ -201,7 +198,7 @@ def parse_term(s, start):
     if i >= len(s) or s[i] != '(':
         return i, Term(name = name, arg = [])
 
-    j, arg = parse_list(s, ',', parse_term, i + 1)
+    j, arg = parse_list(s, ',', parse_op, i + 1)
 
     # If the name is a variable then it cannot have arguments
     if name[0] == '/' and len(arg) > 0:

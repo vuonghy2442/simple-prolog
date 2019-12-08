@@ -59,6 +59,7 @@ def test_parse():
     compare_parse("test(abc) :- xyz).", None)
     compare_parse("a(X,Y):-b(X),(c(Y);d(Y)).", "':-'(a(X,Y),','(b(X),';'(c(Y),d(Y))))") 
     compare_parse("a(X,Y):-%comments here\nb(X),(c(Y/*leu % \nleu*/);d(Y)%i adfd dk\n).", "':-'(a(X,Y),','(b(X),';'(c(Y),d(Y))))") 
+    compare_parse("a:-test(X=Y).", "':-'(a,test('='(X,Y)))")
 
 
 def query(kb, query, truth, num = -1):
@@ -68,7 +69,6 @@ def query(kb, query, truth, num = -1):
 def test_load():
     parse.load_kb("./test_sum.pl")
     parse.load_kb("./test_puzzle.pl")
-    parse.load_kb("./test_infer.pl")
 
 def test0():
     query([], "X=X", ["yes"])
@@ -145,18 +145,6 @@ def test2_1():
             'house(green,german,coffee,prince,_),'
             'house(white,swedish,beer,bluemaster,dog))'
         ])
-
-def test3_1():
-    kb3 = parse.load_kb("./test_infer.pl")
-    query(kb3, "neg(love(a,b))", [])
-
-def test3_2():
-    kb3 = parse.load_kb("./test_infer.pl")
-    query(kb3, "neg(love(a,c))", ['yes'])
-
-def test3_3():
-    kb3 = parse.load_kb("./test_infer.pl")
-    query(kb3, "neg(love(a,c)), fail", [])
 
 def test_ai1():
     kb = parse.load_kb("./AI.pl")

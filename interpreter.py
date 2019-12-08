@@ -69,7 +69,7 @@ def simple_unify(t1, t2, subs):
 
         #if t2 is a variable then switch it with t1
         # or if both are variables then switch the lexicographical smaller one first
-        # This and the check X = X are needed to prevent infinite loop in, A = B, B = A, A = B unifying
+        # This and the check X = X are needed to prevent infinite loop in
         if t1.name[0] !='/' or (t2.name[0] == '/' and t2.name < t1.name):
             t1, t2 = t2, t1
 
@@ -210,9 +210,6 @@ def subs_to_string(subs, full):
 def is_true(term):
     return len(term.arg) == 0 and term.name == "true"
 
-def is_cut(term):
-    return len(term.arg) == 0 and term.name == "!"
-
 def is_fail(term):
     return len(term.arg) == 0 and term.name == "fail"
 
@@ -257,16 +254,13 @@ def matching(p, q, cond, kb, goal, subs_stack, depth, std):
     new_subs = unify(p, q, depth if std else -1)
 
     if new_subs is None:
-        return True
+        return
 
     new_goal = sas_lterm(cond + goal, depth, new_subs)
 
     subs_stack.append(new_subs)
-    if not (yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)):
-        return False
+    yield from backchain_ask(kb, new_goal, subs_stack, depth + 1)
     subs_stack.pop()
-
-    return True
 
 def pre_eval(term):
     #do pre evaluation
@@ -298,7 +292,8 @@ def pre_eval(term):
 def backchain_ask(kb, goal, subs_stack, depth):
     global aborted
     if aborted:
-        return False
+        aborted = False
+        raise Exception("aborted")
 
     q = None
 
@@ -310,56 +305,37 @@ def backchain_ask(kb, goal, subs_stack, depth):
 
     if q is None:
         yield (goal, subs_stack)
-        return True
-
-    if is_true(q):
-        return (yield from backchain_ask(kb, goal, subs_stack, depth)) 
-
-    if is_fail(q):
-        return True
-
-    if is_not(q):
+    elif is_true(q):
+        yield from backchain_ask(kb, goal, subs_stack, depth)
+    elif is_fail(q):
+        pass
+    elif is_not(q):
         gen = backchain_ask(kb, q.arg, [], depth)
         try:
             next(gen)
         except StopIteration:
-            return (yield from backchain_ask(kb, goal, subs_stack, depth))
-        return True
-
-    if is_cut(q):
-        yield from backchain_ask(kb, goal, subs_stack, depth)
-        return False
-
-    if is_smaller(q):
+            yield from backchain_ask(kb, goal, subs_stack, depth)
+    elif is_smaller(q):
         if term_to_string(q.arg[0], True) < term_to_string(q.arg[1], True):
-            return (yield from backchain_ask(kb, goal, subs_stack, depth))
-        return True
-
-    if is_conjuction(q):
-        return (yield from backchain_ask(kb, q.arg + goal, subs_stack, depth))
-
-    if is_disjuction(q):
+            yield from backchain_ask(kb, goal, subs_stack, depth)
+    elif is_conjuction(q):
+        yield from backchain_ask(kb, q.arg + goal, subs_stack, depth)
+    elif is_disjuction(q):
         for term in q.arg:
-            if not (yield from backchain_ask(kb, [term] + goal, subs_stack, depth)):
-                return False
-        return True
-
-    if is_equal(q):
-        return (yield from matching(q.arg[0], q.arg[1], [], kb, goal, subs_stack, depth, False))
-
-    if is_same(q):
+            yield from backchain_ask(kb, [term] + goal, subs_stack, depth)
+    elif is_equal(q):
+        yield from matching(q.arg[0], q.arg[1], [], kb, goal, subs_stack, depth, False)
+    elif is_same(q):
         if term_to_string(q.arg[0], True) == term_to_string(q.arg[1], True):
-            return (yield from backchain_ask(kb, goal, subs_stack, depth))
-        return True
+            yield from backchain_ask(kb, goal, subs_stack, depth)
+    else:
+        #must be rule
+        for p in kb:    
+            if aborted:
+                aborted = False
+                raise Exception("aborted")
 
-    #must be rule
-    for p in kb:
-        if aborted:
-            return False
-        if not (yield from matching(p.arg[0], q, [p.arg[1]], kb, goal, subs_stack, depth, True)):
-            return False
-
-    return True
+            yield from matching(p.arg[0], q, [p.arg[1]], kb, goal, subs_stack, depth, True)
 
 def inference(kb, goal):
     #backward chaining
@@ -369,10 +345,6 @@ def inference(kb, goal):
 
     for r_goal, subs_stack in backchain_ask(kb, [goal],[], 1):
         yield (r_goal, filter_subs(trace_subs(subs_stack)))
-
-    if aborted:
-        aborted = False
-        raise Exception("aborted")
 
 
 # result return by inference
