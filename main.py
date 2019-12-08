@@ -40,18 +40,22 @@ def inference(kb, goal):
 def main():
     signal.signal(signal.SIGINT, handler)
 
-    if len(argv) != 2:
+    if len(argv) > 2:
         print("Usage: python3 main.py <file.pl>")
         print("python >=3.6")
         print("Not support number, list yet")
         quit()
 
-    # Tries to load the knowledge base, if there is any parsing error shown
-    try:
-        kb = parse.load_kb(argv[1])
-    except Exception as e:
-        print(str(e))
-        return
+    if len(argv) == 2:
+        # Tries to load the knowledge base, if there is any parsing error shown
+        try:
+            kb = parse.load_kb(argv[1])
+        except Exception as e:
+            print(str(e))
+            return
+    else:
+        # If user does not input .pl file then init an empty kb
+        kb = []
 
     # repeatedly get the query
     while True:
