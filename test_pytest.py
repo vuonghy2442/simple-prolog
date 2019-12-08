@@ -91,6 +91,8 @@ def test0():
     query([], "s(A,B,C,C)=s(B,C,A,B)", ["A = C, B = C"])
     query([], "s(A,B,C,C)=s(B,C,A,D)", ["A = D, B = D, C = D"])
     query([], "s(A,B,C,D)=s(B,C,A,C)", ["A = D, B = D, C = D"])
+    query([], "dif(A, s(A))", ["dif(A,s(A))"]) #support cyclic terms
+
 
 def test1_1():
     kb1 = parse.load_kb("./test_sum.pl")

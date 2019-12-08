@@ -104,8 +104,8 @@ def remove_ref(subs, depth):
                 # if the variable is in done, no need to do anything further
                 return done[term.name]
             elif term.name in stack:
-                # Cyclic term like X = f(X) is not okay
-                return None
+                # Cyclic term like X = f(X) will be kept not expanding forever
+                return term
             elif old_term.name in d:
                 # if the variable is in d
                 new_term = d.pop(old_term.name)
