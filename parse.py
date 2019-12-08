@@ -211,8 +211,12 @@ def parse_op(s, start):
 
     Operator = namedtuple('Operator', 'name ary builder')
     ops = [ Operator('\\+', 1, lambda x , y : Term('\\+', [y])),
+            Operator('==', 2, lambda x , y : Term('==', [x,y])),
+            Operator('\\==', 2, lambda x , y : Term('\\+', [Term('==', [x,y])])),
+
             Operator('=', 2, lambda x , y : Term('=', [x,y])),
             Operator('\\=', 2, lambda x , y : Term('\\+', [Term('=', [x,y])])),
+
             Operator('@<', 2, lambda x , y : Term('@<', [x,y])),
             Operator('@>', 2, lambda x , y : Term('@<', [y,x]))
         ]

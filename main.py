@@ -15,10 +15,10 @@ def inference(kb, goal):
 
     try:
         found = False
-        for subs in gen:
+        for res in gen:
             found = True
             # Print out the result
-            print(interpreter.subs_to_string(subs, False), end = '')
+            print(interpreter.result_to_string(res), end = '')
 
             # Without flush the output is not shown yet when we getch
             sys.stdout.flush()

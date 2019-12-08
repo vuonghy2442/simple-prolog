@@ -3,9 +3,9 @@ import interpreter
 
 def compare(truth, gen, num = -1):
     if num == -1:
-        sol = [interpreter.subs_to_string(subs, False) for subs in gen]
+        sol = [interpreter.result_to_string(res, False) for res in gen]
     else:
-        sol = [interpreter.subs_to_string(next(gen), False) for i in range(num)]
+        sol = [interpreter.result_to_string(next(gen), False) for i in range(num)]
 
     truth.sort()
     sol.sort()
@@ -74,6 +74,15 @@ def test0():
     query([], "a=b", [])
     query([], "a@<b", ["yes"])
     query([], "Y @< X", [])
+    query([], "Y == X", [])
+    query([], "X == X", ["yes"])
+    query([], "a \\== X", ["yes"])
+    query([], "dif(A, B)", ["dif(A,B)"])
+    query([], "dif(A, B),A=a", ["A = a, dif(a,B)"])
+    query([], "dif(A, B),A=a,B=a", [])
+    query([], "dif(A, B),B = A", [])
+    query([], "dif(A, B),A = a, B = b", ["A = a, B = b"])
+
 
 def test1_1():
     kb1 = parse.load_kb("./test_sum.pl")
@@ -201,7 +210,7 @@ def test_ai2():
     query(kb, "kingdom(X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera'])
     query(kb, "thuocGioi(plantae, vertebrata)", [])
     query(kb, "hon1Bac(animalia, grainy_plantae)", ['yes'])
-    query(kb, "cungBac(fungi,X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera'])
+    query(kb, "cungBac(fungi,X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera']) #fungi should not be here
     query(kb, "thuocNganh(vertebrata, reptilia)", ['yes'])
     query(kb, "amphibia(X)", ['X = frog', 'X = salamander'])
     query(kb, "coLongVu(X)", ['X = eagle', 'X = sparrow'])

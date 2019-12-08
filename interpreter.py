@@ -196,11 +196,7 @@ def subs_to_string(subs, full):
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
     
     s.sort()
-
-    if not s:
-        return 'yes'
-    else:
-        return ', '.join(s)
+    return ', '.join(s)
 
 def is_true(term):
     return len(term.arg) == 0 and term.name == "true"
@@ -223,11 +219,17 @@ def is_rule(term):
 def is_equal(term):
     return len(term.arg) == 2 and term.name == "="
 
+def is_same(term):
+    return len(term.arg) == 2 and term.name == "=="
+
 def is_conjuction(term):
     return term.name == ","
 
 def is_disjuction(term):
     return term.name == ";"
+
+def is_dif(term):
+    return len(term.arg) == 2 and term.name == "dif"
 
 def trace_subs(subs_stack):
     merge_subs = {}
@@ -257,58 +259,83 @@ def matching(p, q, cond, kb, goal, subs_stack, depth, std):
 
     return True
 
+def pre_eval(term):
+    #do pre evaluation
+    if is_dif(term):
+        res = unify(term.arg[0], term.arg[1], -1)
+        if res is None:
+            return parse.Term('true', []) #if not unifable then return true
+        elif len(res) == 0:
+            return parse.Term('fail', []) #nope
+        else:
+            return None  #not evaluable yet
+    
+    return term
+
+
 #return found, continue
 def backchain_ask(kb, goal, subs_stack, depth):
     global aborted
     if aborted:
         return False
 
-    if len(goal) == 0:
-        yield subs_stack
+    q = None
+
+    for i in range(len(goal)):
+        q = pre_eval(goal[i])
+        if q is not None:
+            del goal[i]
+            break
+
+    if q is None:
+        yield (goal, subs_stack)
         return True
 
-    q = goal[0]
-
     if is_true(q):
-        return (yield from backchain_ask(kb, goal[1:], subs_stack, depth)) 
+        return (yield from backchain_ask(kb, goal, subs_stack, depth)) 
 
     if is_fail(q):
         return True
 
     if is_not(q):
-        gen = backchain_ask(kb, q.arg, subs_stack, depth)
+        gen = backchain_ask(kb, q.arg, [], depth)
         try:
             next(gen)
         except StopIteration:
-            return (yield from backchain_ask(kb, goal[1:], subs_stack, depth))
+            return (yield from backchain_ask(kb, goal, subs_stack, depth))
         return True
 
     if is_cut(q):
-        yield from backchain_ask(kb, goal[1:], subs_stack, depth)
+        yield from backchain_ask(kb, goal, subs_stack, depth)
         return False
 
     if is_smaller(q):
         if term_to_string(q.arg[0], True) < term_to_string(q.arg[1], True):
-            return (yield from backchain_ask(kb, goal[1:], subs_stack, depth))
+            return (yield from backchain_ask(kb, goal, subs_stack, depth))
         return True
 
     if is_conjuction(q):
-        return (yield from backchain_ask(kb, q.arg + goal[1:], subs_stack, depth))
+        return (yield from backchain_ask(kb, q.arg + goal, subs_stack, depth))
 
     if is_disjuction(q):
         for term in q.arg:
-            if not (yield from backchain_ask(kb, [term] + goal[1:], subs_stack, depth)):
+            if not (yield from backchain_ask(kb, [term] + goal, subs_stack, depth)):
                 return False
         return True
 
     if is_equal(q):
-        return (yield from matching(q.arg[0], q.arg[1], [], kb, goal[1:], subs_stack, depth, False))
+        return (yield from matching(q.arg[0], q.arg[1], [], kb, goal, subs_stack, depth, False))
+
+    if is_same(q):
+        if term_to_string(q.arg[0], True) == term_to_string(q.arg[1], True):
+            return (yield from backchain_ask(kb, goal, subs_stack, depth))
+        return True
 
     #must be rule
     for p in kb:
         if aborted:
             return False
-        if not (yield from matching(p.arg[0], q, [p.arg[1]], kb, goal[1:], subs_stack, depth, True)):
+        if not (yield from matching(p.arg[0], q, [p.arg[1]], kb, goal, subs_stack, depth, True)):
             return False
 
     return True
@@ -319,9 +346,25 @@ def inference(kb, goal):
     aborted = False
     goal = sas_term(goal, 0, {})
 
-    for subs_stack in backchain_ask(kb, [goal],[], 1):
-        yield filter_subs(trace_subs(subs_stack))
+    for r_goal, subs_stack in backchain_ask(kb, [goal],[], 1):
+        yield (r_goal, filter_subs(trace_subs(subs_stack)))
 
     if aborted:
         aborted = False
         raise Exception("aborted")
+
+
+# result return by inference
+def result_to_string(res, full = False):
+    r_goal, subs = res
+    subs_str = subs_to_string(subs, full)
+    r_goal_str = lterm_to_string(r_goal, full)
+
+    if r_goal and subs:
+        return subs_str + ', ' + r_goal_str
+    elif subs:
+        return subs_str
+    elif r_goal:
+        return r_goal_str
+    else:
+        return 'yes'
