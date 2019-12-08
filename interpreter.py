@@ -54,13 +54,6 @@ def simple_unify(t1, t2, subs):
         else:
             # If they are compatible then tries to unify its arguments
             return all(simple_unify(x, y, subs) for x, y in zip(t1.arg, t2.arg))
-                
-    elif t1.name == '/' and t2.name == '/':
-        # Both term are variable
-        # if X = X then ignore it
-        if t1.name == t2.name:
-            return True
-
     else:
         # If both term is the same variable e.g. X=X then it's unifiable
         if t1.name == t2.name:
