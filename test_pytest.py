@@ -80,10 +80,14 @@ def test0():
     query([], "X == X", ["yes"])
     query([], "a \\== X", ["yes"])
     query([], "dif(A, B)", ["dif(A,B)"])
-    query([], "dif(A, B),A=a", ["A = a, dif(a,B)"])
+    query([], "dif(A, B),A=a", ["A = a, dif(B,a)"])
     query([], "dif(A, B),A=a,B=a", [])
     query([], "dif(A, B),B = A", [])
     query([], "dif(A, B),A = a, B = b", ["A = a, B = b"])
+    query([], "dif(s(A), s(B))", ["dif(A,B)"])
+    query([], "dif(s(A,B), s(B,A))", ["dif(A,B)"])
+    query([], "dif(s(A,s(B)), s(s(B),A))", ["dif(A,s(B))"])
+    query([], "dif(s(A, B, C), s(B , C, A))", ["dif(f(B,A),f(C,C))"])
 
 
 def test1_1():

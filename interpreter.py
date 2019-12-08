@@ -56,15 +56,21 @@ def simple_unify(t1, t2, subs):
             for x, y in zip(t1.arg, t2.arg):
                 if not simple_unify(x, y, subs):
                     return False
-    else:
-        # At least one of the terms is a variable
+    elif t1.name == '/' and t2.name == '/':
+        # Both term are variable
+        # if X = X then ignore it
+        if t1.name == t2.name:
+            return True
 
+    else:
         # If both term is the same variable e.g. X=X then it's unifiable
         if t1.name == t2.name:
             return True
 
         #if t2 is a variable then switch it with t1
-        if t2.name[0] == '/':
+        # or if both are variables then switch the lexicographical smaller one first
+        # This and the check X = X are needed to prevent infinite loop in, A = B, B = A, A = B unifying
+        if t1.name[0] !='/' or (t2.name[0] == '/' and t2.name < t1.name):
             t1, t2 = t2, t1
 
         # Now t1 must be a variable, we have the subsituion t1 = t2
@@ -94,21 +100,24 @@ def remove_ref(subs, depth):
             if depth >= 0 and term.name[1] != '/':
                 term =  parse.Term(name = stand_name(term.name, depth), arg = [])
 
-            # Self substition (except X = X which is removed in simple unify) is not okay e.g. X = f(X)
-            if term.name in stack:
-                return None
-            elif term.name in done:
+            if term.name in done:
                 # if the variable is in done, no need to do anything further
                 return done[term.name]
+            elif term.name in stack:
+                # Cyclic term like X = f(X) is not okay
+                return None
             elif old_term.name in d:
                 # if the variable is in d
                 new_term = d.pop(old_term.name)
 
-                # tries to remove_ref it self
-                stack.add(term.name)
-                new_term = remove_ref_term(new_term, depth, d, done, stack)
-                stack.remove(term.name)
+                # If the new term is a variable then no need to add to stack because they can self reference
+                if not is_var(new_term):
+                    stack.add(term.name)
 
+                # tries to remove_ref it self
+                new_term = remove_ref_term(new_term, depth, d, done, stack)
+
+                # No need to remove from stack because tis term is in done now
                 # the new term is standardized
                 done[term.name] = new_term
                 return new_term
@@ -268,6 +277,18 @@ def pre_eval(term):
         elif len(res) == 0:
             return parse.Term('fail', []) #nope
         else:
+            #update the term
+            left = []
+            right = []
+            for var, t in res.items():
+                left.append(parse.Term(var, []))
+                right.append(t)
+
+            if len(left) > 1:
+                term.arg[0] = parse.Term('f', left)
+                term.arg[1] = parse.Term('f', right)
+            else:
+                term.arg[0], term.arg[1] = left[0], right[0]
             return None  #not evaluable yet
     
     return term
