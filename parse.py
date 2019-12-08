@@ -28,11 +28,11 @@ unique_id = 0
 # Currently parsing is having the following chain (or cycle?)
 #   0. Parse knowledge base: Contain many terms, each term is a rule
 #   1. Parse rule: <term> :- <list of term>. or <term>. Each term will be parse by parse conjunction
-#   2. Parse conjuction <term1>, <term2>,... will be parse to ','(<list of term>) 
-#       terms will be parsed by parse disjunction
+#   2. Parse disjuction <term1>; <term2>;... will be parse to ';'(<list of term>) 
+#       terms will be parsed by parse conjunction
 #       if The list of term has only one term. Then that term will be return instead
 #       if the list is empty then None is returned
-#   3. Parse disjuction: similar to parse conjunction but terms are split by ';'
+#   3. Parse conjunction: similar to parse disjunction but terms are split by ','
 #       and terms are parsed by parse operators
 #   4. Parse operators: tries to parse term in these structures (in order)
 #          <term1>=None <unary op> <term2>
@@ -46,7 +46,7 @@ unique_id = 0
 #       If there is a bracket, then parse the list inside the bracket by parse term
 #   6. Parse bracket:
 #       Check for the closing bracket
-#       Restart the parse chain by parsing the term by parse conjunction
+#       Restart the parse chain by parsing the term by parse disjunction
 
 
 
@@ -166,7 +166,7 @@ def parse_list(s, delim, parser, start):
 def parse_bracket(s, start):
     assert(s[start] == '(')
     
-    i, term = parse_conjunction(s, start + 1)
+    i, term = parse_disjunction(s, start + 1)
 
     # Check for the closing bracket
     if i >= len(s) or s[i] != ')':
@@ -243,10 +243,21 @@ def parse_op(s, start):
 
     return start, builder(term1, term2)
 
+# Pase conjunction
+def parse_conjunction(s, start):
+    n, arg = parse_list(s, ',', parse_op, start)
+    
+    if len(arg) == 0:
+        return n, None
+    elif len(arg) == 1:
+        return n, arg[0]
+    else:
+        return n, Term(',', arg)
+
 # Parse disjunction
 # Just apply the parse list and handle cases with no or only one term
 def parse_disjunction(s, start):
-    n, arg = parse_list(s, ';', parse_op, start)
+    n, arg = parse_list(s, ';', parse_conjunction, start)
     
     if len(arg) == 0:
         return n, None
@@ -255,16 +266,6 @@ def parse_disjunction(s, start):
     else:
         return n, Term(';', arg)
 
-# Pase conjuction
-def parse_conjunction(s, start):
-    n, arg = parse_list(s, ',', parse_disjunction, start)
-    
-    if len(arg) == 0:
-        return n, None
-    elif len(arg) == 1:
-        return n, arg[0]
-    else:
-        return n, Term(',', arg)
 
 # Parse rule
 def parse_rule(s, start):
@@ -279,7 +280,7 @@ def parse_rule(s, start):
     if n < len(s) and s[n] != '.':
         if n + 1 >= len(s) or s[n:n + 2] != ':-':
             raise Exception(f"{n + 1} Expected '.' or ':-'")
-        n, pcnd = parse_conjunction(s, n + 2)
+        n, pcnd = parse_disjunction(s, n + 2)
     else:
         pcnd = Term(name = 'true', arg = []) #no pre condition
 
@@ -303,7 +304,7 @@ def parse_kb(s):
 
 # Parse goal, goal is a term (not containing rules)
 def parse_goal(s):
-    n, lterm = parse_conjunction(s, 0)
+    n, lterm = parse_disjunction(s, 0)
     if n < len(s) and s[n] != '.':
         raise Exception(f"{n + 1}: Unexpected end token {s[n]}")
 
