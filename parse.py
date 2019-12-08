@@ -3,8 +3,8 @@ from collections import namedtuple
 # Structure of a term
 # <term> : <term>(list of <term>)
 # ["string",["string", "string", "string"]]
-
-Term = namedtuple('Term', 'name arg')
+# save set of variable for optimization
+Term = namedtuple('Term', 'name arg var')
 
 unique_id = 0
 
@@ -48,7 +48,17 @@ unique_id = 0
 #       Check for the closing bracket
 #       Restart the parse chain by parsing the term by parse disjunction
 
-
+# create term
+# only use for non critical part
+def create_term(name, arg):
+    if name[0] == '/':
+        return Term(name = name, arg = [], var = set([name]))
+    else:
+        if arg:
+            var = set.union(*(term.var for term in arg))
+        else:
+            var = set([])
+        return Term(name = name, arg = arg, var = var)
 
 # Normally, name must start with an alphabet character
 # After the first character, it can contains alphabet, digit, or '_'
@@ -196,7 +206,7 @@ def parse_term(s, start):
 
     # If found '(', it means there is a argument list
     if i >= len(s) or s[i] != '(':
-        return i, Term(name = name, arg = [])
+        return i, create_term(name, [])
 
     j, arg = parse_list(s, ',', parse_op, i + 1)
 
@@ -207,23 +217,24 @@ def parse_term(s, start):
     if j >= len(s) or s[j] != ')':
         raise Exception(f"{j + 1}: Expected bracket close for the bracket open at {i + 1}")
     
+
     # Skip the ')' and then find the next non space
-    return skip_space(s, j + 1), Term(name = name, arg = arg)
+    return skip_space(s, j + 1), create_term(name = name, arg = arg)
 
 # Parse operator
 def parse_op(s, start):
     start, term1 = parse_term(s, start)
 
     Operator = namedtuple('Operator', 'name ary builder')
-    ops = [ Operator('\\+', 1, lambda x , y : Term('\\+', [y])),
-            Operator('==', 2, lambda x , y : Term('==', [x,y])),
-            Operator('\\==', 2, lambda x , y : Term('\\+', [Term('==', [x,y])])),
+    ops = [ Operator('\\+', 1, lambda x , y : create_term('\\+', [y])),
+            Operator('==', 2, lambda x , y : create_term('==', [x,y])),
+            Operator('\\==', 2, lambda x , y : create_term('\\+', [create_term('==', [x,y])])),
 
-            Operator('=', 2, lambda x , y : Term('=', [x,y])),
-            Operator('\\=', 2, lambda x , y : Term('\\+', [Term('=', [x,y])])),
+            Operator('=', 2, lambda x , y : create_term('=', [x,y])),
+            Operator('\\=', 2, lambda x , y : create_term('\\+', [create_term('=', [x,y])])),
 
-            Operator('@<', 2, lambda x , y : Term('@<', [x,y])),
-            Operator('@>', 2, lambda x , y : Term('@<', [y,x]))
+            Operator('@<', 2, lambda x , y : create_term('@<', [x,y])),
+            Operator('@>', 2, lambda x , y : create_term('@<', [y,x]))
         ]
 
     #Find the matching operator
@@ -256,7 +267,7 @@ def parse_conjunction(s, start):
     elif len(arg) == 1:
         return n, arg[0]
     else:
-        return n, Term(',', arg)
+        return n, create_term(',', arg)
 
 # Parse disjunction
 # Just apply the parse list and handle cases with no or only one term
@@ -268,7 +279,7 @@ def parse_disjunction(s, start):
     elif len(arg) == 1:
         return n, arg[0]
     else:
-        return n, Term(';', arg)
+        return n, create_term(';', arg)
 
 
 # Parse rule
@@ -286,12 +297,12 @@ def parse_rule(s, start):
             raise Exception(f"{n + 1} Expected '.' or ':-'")
         n, pcnd = parse_disjunction(s, n + 2)
     else:
-        pcnd = Term(name = 'true', arg = []) #no pre condition
+        pcnd = create_term(name = 'true', arg = []) #no pre condition
 
     if n >= len(s) or s[n] != '.':
         raise Exception(f"{n + 1} Expected '.'")
 
-    return skip_space(s, n + 1), Term(name = ":-", arg = [imp, pcnd])
+    return skip_space(s, n + 1), create_term(name = ":-", arg = [imp, pcnd])
 
 # Parse knowledge base
 # Knowledge base is just a list of rule

@@ -24,17 +24,20 @@ def sas_term(term, depth, subs):
     if term.name[0] == '/': #is_var(term) but inline
         # if the variable is not standarized then do it
         if term.name[1] != '/':
-            term = parse.Term(name = stand_name(term.name, depth), arg = [])
+            new_name = stand_name(term.name, depth)
+            term = parse.Term(name = new_name, arg = [], var = set([new_name]))
 
         # check if it is in the substituion dict
         if term.name in subs:
             return subs[term.name]
         else:
             return term
+    elif len(term.var & subs.keys()) == 0 and all(x[:2]=='//' for x in term.var):
+        return term
     else:
         # If it is a predicate, then recursively do sas for its arguments
         new_arg = [sas_term(x, depth, subs) for x in  term.arg]
-        return parse.Term(name = term.name, arg = new_arg)
+        return parse.create_term(name = term.name, arg = new_arg)
 
 # Do sas for a list of terms
 def sas_lterm(lterm, depth, subs):
@@ -93,12 +96,10 @@ def remove_ref(subs, depth):
     # stack is a set that stores the parent terms
     def remove_ref_term(term, depth, d, done, stack):
         if is_var(term):
-            # Save the old term to search in the non-standardized subs dict d
-            old_term = term
-
             # Standardizing name
             if depth >= 0 and term.name[1] != '/':
-                term =  parse.Term(name = stand_name(term.name, depth), arg = [])
+                new_name = stand_name(term.name, depth)
+                term =  parse.Term(name = new_name, arg = [], var = set([new_name]))
 
             if term.name in done:
                 # if the variable is in done, no need to do anything further
@@ -106,9 +107,9 @@ def remove_ref(subs, depth):
             elif term.name in stack:
                 # Cyclic term like X = f(X) will be kept not expanding forever
                 return term
-            elif old_term.name in d:
+            elif term.name in d:
                 # if the variable is in d
-                new_term = d.pop(old_term.name)
+                new_term = d.pop(term.name)
 
                 # If the new term is a variable then no need to add to stack because they can self reference
                 if not is_var(new_term):
@@ -125,21 +126,27 @@ def remove_ref(subs, depth):
                 #already standardized and not found in substitution dict
                 return term
         else:
+            merge = d | done.keys()
+            if all(x[:2] == '//' and x not in merge for x in term.var):
+                return term
+        
             # if it is a predicate, tries to remove refs its arguments, if any of its arguments fails, the process fails
-            new_term = parse.Term(term.name, [ None ] * len(term.arg))
+            arg = [ None ] * len(term.arg)
             for i in range(len(term.arg)):
-                new_term.arg[i] = remove_ref_term(term.arg[i], depth, d, done, stack)
-                if new_term.arg[i] is None:
+
+                arg[i] = remove_ref_term(term.arg[i], depth, d, done, stack)
+                if arg[i] is None:
                     return None
 
-            return new_term
+            return parse.create_term(term.name, arg)
 
     d = dict(subs)
     done = {}
 
     # while the d dict is still not empty, get one substitution and remove reference from it
     while d:
-        next_var = parse.Term(next(iter(d)), [])
+        name = next(iter(d))
+        next_var = parse.Term(name, [], None)
         if remove_ref_term(next_var, depth, d, done, set()) is None:
             return None
     
@@ -150,7 +157,15 @@ def unify(eq1, eq2, depth):
     if not simple_unify(eq1, eq2, new_subs):
         return None
 
-    return remove_ref(new_subs, depth)
+    std_subs = dict()
+    if depth >= 0:
+        for var, term in new_subs.items():
+            if var[:2] != '//' : var = stand_name(var, depth)
+            std_subs[var] = term
+    else:
+        std_subs = new_subs
+
+    return remove_ref(std_subs, depth)
 
 def need_quote(s):
     if not s[0].isalpha():
@@ -201,7 +216,7 @@ def filter_subs(subs):
 def subs_to_string(subs, full):
     s = []
     for x, y in subs.items():
-        x = parse.Term(x, [])
+        x = parse.Term(x, [], None)
         s.append(f"{name_to_string(x, full)} = {term_to_string(y, full)}")
     
     s.sort()
@@ -267,20 +282,20 @@ def pre_eval(term):
     if is_dif(term):
         res = unify(term.arg[0], term.arg[1], -1)
         if res is None:
-            return parse.Term('true', []) #if not unifable then return true
+            return parse.Term('true', [], set([])) #if not unifable then return true
         elif len(res) == 0:
-            return parse.Term('fail', []) #nope
+            return parse.Term('fail', [], set([])) #nope
         else:
             #update the term
             left = []
             right = []
             for var, t in res.items():
-                left.append(parse.Term(var, []))
+                left.append(parse.Term(var, [], set([var])))
                 right.append(t)
 
             if len(left) > 1:
-                term.arg[0] = parse.Term('f', left)
-                term.arg[1] = parse.Term('f', right)
+                term.arg[0] = parse.Term('f', left, res.keys())
+                term.arg[1] = parse.create_term('f', right)
             else:
                 term.arg[0], term.arg[1] = left[0], right[0]
             return None  #not evaluable yet
