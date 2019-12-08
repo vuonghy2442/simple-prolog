@@ -58,6 +58,8 @@ def test_parse():
     compare_parse("test(abc) xyz.", None)
     compare_parse("test(abc) :- xyz).", None)
     compare_parse("a(X,Y):-b(X),(c(Y);d(Y)).", "':-'(a(X,Y),','(b(X),';'(c(Y),d(Y))))") 
+    compare_parse("a(X,Y):-%comments here\nb(X),(c(Y/*leu % \nleu*/);d(Y)%i adfd dk\n).", "':-'(a(X,Y),','(b(X),';'(c(Y),d(Y))))") 
+
 
 def query(kb, query, truth, num = -1):
     gen = interpreter.inference(kb, parse.parse_goal(query))

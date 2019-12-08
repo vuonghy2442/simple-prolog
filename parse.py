@@ -56,14 +56,22 @@ unique_id = 0
 # Special name like '!', '_' needs to be handle
 # Automatically add '/' to variable name
 # Assume that s[start] is not space
-# Also skip comments
+# Also skip comments % and /* */
 def skip_space(s, start):
-    comments = False
-    while start < len(s) and (s[start].isspace() or s[start] == '%' or comments):
-        if comments and s[start] == '\n':
-            comments = False
-        elif not comments and s[start] == '%':
-            comments = True
+    comments = None
+    while start < len(s):  
+        if comments == '%' and s[start] == '\n':
+            comments = None
+        elif comments == '/*' and s[start:start+2] == '*/':
+            comments = None
+            start += 1
+        elif comments is None:
+            if s[start] == '%':
+                comments = '%'
+            elif s[start:start + 2] == '/*':
+                comments = '/*'
+            elif not s[start].isspace():
+                break
 
         start += 1
     return start
