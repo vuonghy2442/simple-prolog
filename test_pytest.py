@@ -88,7 +88,9 @@ def test0():
     query([], "dif(s(A,B), s(B,A))", ["dif(A,B)"])
     query([], "dif(s(A,s(B)), s(s(B),A))", ["dif(A,s(B))"])
     query([], "dif(s(A, B, C), s(B , C, A))", ["dif(f(B,A),f(C,C))"])
-
+    query([], "s(A,B,C,C)=s(B,C,A,B)", ["A = C, B = C"])
+    query([], "s(A,B,C,C)=s(B,C,A,D)", ["A = D, B = D, C = D"])
+    query([], "s(A,B,C,D)=s(B,C,A,C)", ["A = D, B = D, C = D"])
 
 def test1_1():
     kb1 = parse.load_kb("./test_sum.pl")
