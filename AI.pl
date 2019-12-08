@@ -112,8 +112,8 @@ parent(sophie_Rhys_Jones,james).
 
 
 
-husband(Person,Wife):-male(Person),female(Wife),married(Person,Wife),not(divorced(Person,Wife)).
-wife(Person,Husband):-male(Husband),female(Person),married(Person,Husband),not(divorced(Person,Husband)).
+husband(Person,Wife):-male(Person),female(Wife),married(Person,Wife),\+divorced(Person,Wife).
+wife(Person,Husband):-male(Husband),female(Person),married(Person,Husband),\+divorced(Person,Husband).
 father(Parent,Child):-parent(Parent,Child),male(Parent).
 mother(Parent,Child):-parent(Parent,Child),female(Parent).
 child(Child,Parent):-parent(Parent,Child).
@@ -127,7 +127,7 @@ grandchild(GC,GP):-grandparent(GP,GC).
 grandson(GS,GP):-grandchild(GS,GP),male(GS).
 granddaughter(GD,GP):-grandchild(GD,GP),female(GD).
 
-sibling(Person1,Person2):-father(X,Person1),father(X,Person2),Person1\=Person2.
+sibling(Person1,Person2):-father(X,Person1),father(X,Person2),dif(Person1,Person2).
 brother(Person,Sibling):-sibling(Person,Sibling),male(Person).
 sister(Person,Sibling):-sibling(Person,Sibling),female(Person).
 aunt(Person,NieceNephew):-sister(Person,X),parent(X,NieceNephew).

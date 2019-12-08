@@ -42,7 +42,7 @@ hasExoskeleton(X):-arthropoda(X). %boXuongNgoai
 
 invertebrates(X):-arthropoda(X);molluscs(X).
 
-liveUnderwater(X):-molluscs(X);fish(X);reptilia(X);X\=crocodile.
+liveUnderwater(X):-(molluscs(X);fish(X);reptilia(X)),dif(X,crocodile).
 liveOnland(X):-bird(X);mammalia(X);X=salamander.
 
 animalia(X):-arthropoda(X);vertebrata(X);molluscs(X).
@@ -127,6 +127,6 @@ class(arthropoda,X):-arthropoda(X).
 class(annelida,X):-annelida(X).
 
 hon1Bac(X,Y):-kingdom(X),(phylum(Z,Y);division(Z,Y)),kingdom(Z);(phylum(Z,X);division(Z,X)),class(X,Y),kingdom(Z).
-cungBac(X,Y):-kingdom(X),kingdom(Y);phylum(Z,X),phylum(Z,Y);division(Z,X),division(Z,Y);class(Z,X),class(Z,Y).
+cungBac(X,Y):-(kingdom(X),kingdom(Y);phylum(Z,X),phylum(Z,Y);division(Z,X),division(Z,Y);class(Z,X),class(Z,Y)),dif(X,Y).
 thuocGioi(X,Y):-kingdom(X),(phylum(X,Y);division(X,Y)).
 thuocNganh(X,Y):-(phylum(Z,X);division(Z,X)),class(X,Y),kingdom(Z).

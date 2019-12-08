@@ -202,7 +202,7 @@ def test_ai2():
     query(kb, "molluscs(octopus)", ['yes'])
     query(kb, "invertebrates(bear)", [])
     query(kb, "liveOnland(X)", ['X = eagle', 'X = sparrow', 'X = tiger', 'X = bear', 'X = salamander'])
-    query(kb, "liveUnderwater(spider)", ['yes']) #wut ??
+    query(kb, "liveUnderwater(spider)", [])
     query(kb, "plantae(bamboo)", ['yes'])
     query(kb, "gymnosperms(X)", ['X = ginkgophyta', 'X = pine', 'X = cycadophyta'])
     query(kb, "angiosperms(tomato)", ['yes'])
@@ -210,7 +210,7 @@ def test_ai2():
     query(kb, "kingdom(X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera'])
     query(kb, "thuocGioi(plantae, vertebrata)", [])
     query(kb, "hon1Bac(animalia, grainy_plantae)", ['yes'])
-    query(kb, "cungBac(fungi,X)", ['X = animalia', 'X = plantae', 'X = fungi', 'X = protista', 'X = monera']) #fungi should not be here
+    query(kb, "cungBac(fungi,X)", ['X = animalia', 'X = plantae', 'X = protista', 'X = monera']) #fungi should not be here
     query(kb, "thuocNganh(vertebrata, reptilia)", ['yes'])
     query(kb, "amphibia(X)", ['X = frog', 'X = salamander'])
     query(kb, "coLongVu(X)", ['X = eagle', 'X = sparrow'])
